@@ -1,0 +1,65 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Dashboard - GymSystem{% endblock %}
+{% block content %}
+<h4 class="mb-4"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h4>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-primary">{{ stats.total_clients }}</div>
+                <div class="text-muted small">Clientes Activos</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-success">{{ stats.active_memberships }}</div>
+                <div class="text-muted small">Membresías Activas</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-warning">{{ stats.expiring_soon }}</div>
+                <div class="text-muted small">Próximas a Vencer</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center border-danger">
+            <div class="card-body">
+                <div class="fs-1 fw-bold text-danger">{{ stats.expired }}</div>
+                <div class="text-muted small">Membresías Vencidas</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">Ingresos del Día</h6>
+                <div class="fs-4 fw-bold text-success">${{ '{:,.0f}'.format(stats.today_income) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">Ingresos del Mes</h6>
+                <div class="fs-4 fw-bold text-primary">${{ '{:,.0f}'.format(stats.month_income) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">Asistencias Hoy</h6>
+                <div class="fs-4 fw-bold text-info">{{ stats.today_attendance }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
