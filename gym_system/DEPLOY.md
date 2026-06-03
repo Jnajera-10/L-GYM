@@ -1,75 +1,39 @@
-# 🚀 Despliegue en Render GRATIS — Guía Completa
+# 🚀 Despliegue en Render (gratis) — Base de datos Neon ya configurada
 
-## ⚡ El problema del plan gratuito y la solución
+## ✅ La base de datos Neon ya está integrada en el proyecto
 
-El plan gratuito de Render **duerme el servidor** si no hay visitas por 15 minutos.
-Cuando alguien entra después, tarda 15-30 segundos en despertar (cold start).
-
-**Solución GRATIS: UptimeRobot** — pinga tu app cada 5 minutos automáticamente.
-Configuración al final de esta guía.
+La conexión a Neon está configurada directamente en `config.py` y `render.yaml`.
+**No necesitas crear ni configurar la base de datos** — ya está lista.
 
 ---
 
-## PASO 1 — Instalar Git y subir a GitHub
+## PASO 1 — Subir a GitHub
 
-### Si no tienes Git instalado:
-- Windows: https://git-scm.com/download/win
-- Mac: ya viene instalado
+Si aún no lo has hecho, crea un repositorio en https://github.com y sube el código:
 
-### Crear repositorio en GitHub:
-1. Ve a https://github.com → **"New repository"**
-2. Nombre: `gymsystem` → **"Create repository"**
+```bash
+git add .
+git commit -m "Neon DB configurada"
+git push
+```
 
-### Subir el código:
-Abre una terminal dentro de la carpeta `gym_system/` y ejecuta:
-
+Si es la primera vez:
 ```bash
 git init
 git add .
-git commit -m "GymSystem inicial"
+git commit -m "GymSystem con Neon DB"
 git branch -M main
 git remote add origin https://github.com/TU_USUARIO/gymsystem.git
 git push -u origin main
 ```
 
-Cambia `TU_USUARIO` por tu usuario de GitHub.
-
 ---
 
-## PASO 2 — Crear cuenta en Render
+## PASO 2 — Crear el Web Service en Render
 
-1. Ve a https://render.com
-2. Clic en **"Get Started for Free"**
-3. **Regístrate con GitHub** (más fácil, conecta automático)
-
----
-
-## PASO 3 — Crear la Base de Datos PostgreSQL (GRATIS 90 días)
-
-> Después de 90 días el plan gratuito de DB se elimina.
-> Opción: exportar los datos antes y crear una nueva (sigue siendo gratis).
-> O usar ElephantSQL/Supabase que son gratuitos permanentes (ver abajo).
-
-1. En Render Dashboard → **"New +"** → **"PostgreSQL"**
-2. Configura:
-   - **Name:** `gymsystem-db`
-   - **Region:** `Ohio (US East)` — más rápido desde Colombia
-   - **Plan:** `Free`
-3. Clic **"Create Database"** → espera 1-2 minutos
-4. Copia la **"Internal Database URL"** → la necesitarás en el Paso 4
-
-### Alternativa GRATIS permanente (recomendada):
-Usa **Supabase** (https://supabase.com) — PostgreSQL gratis para siempre.
-1. Crea proyecto en Supabase → copia la **Connection String** (modo "Transaction")
-2. Úsala como `DATABASE_URL` en el paso siguiente
-
----
-
-## PASO 4 — Crear el Web Service
-
-1. Dashboard Render → **"New +"** → **"Web Service"**
-2. **Connect a repository** → selecciona `gymsystem`
-3. Configura así:
+1. Ve a https://render.com → **"New +"** → **"Web Service"**
+2. Conecta el repositorio `gymsystem`
+3. Configura:
 
 | Campo | Valor |
 |---|---|
@@ -81,30 +45,23 @@ Usa **Supabase** (https://supabase.com) — PostgreSQL gratis para siempre.
 | Start Command | `gunicorn app:application --workers 1 --threads 4 --worker-class gthread --timeout 120 --bind 0.0.0.0:$PORT` |
 | Plan | **Free** |
 
-4. Clic **"Create Web Service"**
-
----
-
-## PASO 5 — Variables de Entorno
-
-En el Web Service → pestaña **"Environment"** → **"Add Environment Variable"**:
+4. En **"Environment Variables"** agrega **solo esto**:
 
 | Variable | Valor |
 |---|---|
-| `DATABASE_URL` | La URL que copiaste en el Paso 3 |
 | `SECRET_KEY` | Genera uno en https://randomkeygen.com (Fort Knox) |
 | `FLASK_ENV` | `production` |
 
-Clic **"Save Changes"** → Render redespliega automáticamente.
+> La `DATABASE_URL` de Neon ya viene incluida en `render.yaml` — no la necesitas agregar manualmente.
+
+5. Clic **"Create Web Service"** → espera ~3 minutos hasta ver **"Live"** ✅
 
 ---
 
-## PASO 6 — Inicializar la base de datos
-
-Cuando el deploy termine (verás **"Live"** en verde):
+## PASO 3 — Inicializar la base de datos (solo la primera vez)
 
 1. Web Service → pestaña **"Shell"**
-2. Escribe:
+2. Ejecuta:
 ```bash
 python seed.py
 ```
@@ -117,79 +74,52 @@ Verás:
 
 ---
 
-## PASO 7 — Entrar al sistema
+## PASO 4 — Entrar al sistema
 
-Tu URL: `https://gymsystem.onrender.com`
+URL: `https://gymsystem.onrender.com`
 
 - **Usuario:** `admin`
 - **Contraseña:** `Admin2025!`
-- ⚠️ Cambia la contraseña en Configuración > Usuarios
+- ⚠️ Cambia la contraseña inmediatamente
 
 ---
 
-## PASO 8 — Eliminar el cold start (GRATIS con UptimeRobot)
+## PASO 5 — Eliminar el cold start con UptimeRobot (gratis)
 
-Esto hace que tu app esté siempre activa sin pagar nada.
+Render gratuito duerme el servidor tras 15 min de inactividad (cold start de ~20s).
+UptimeRobot lo pinga cada 5 min para mantenerlo activo siempre.
 
 1. Ve a https://uptimerobot.com → **"Register for FREE"**
-2. Dashboard → **"Add New Monitor"**
-3. Configura:
-   - **Monitor Type:** `HTTP(s)`
-   - **Friendly Name:** `GymSystem`
-   - **URL:** `https://gymsystem.onrender.com/health`
-   - **Monitoring Interval:** `5 minutes`
-4. Clic **"Create Monitor"**
-
-✅ Listo. UptimeRobot pingea tu app cada 5 minutos, Render nunca la duerme.
-Además te avisa por email si tu app cae.
+2. **"Add New Monitor"**:
+   - Monitor Type: `HTTP(s)`
+   - Friendly Name: `GymSystem`
+   - URL: `https://gymsystem.onrender.com/health`
+   - Interval: `5 minutes`
+3. **"Create Monitor"** ✅
 
 ---
 
-## PASO 9 — Deploys futuros (automáticos)
-
-Cada vez que actualices el código:
+## PASO 6 — Actualizaciones futuras
 
 ```bash
 git add .
 git commit -m "descripción del cambio"
 git push
 ```
-
-Render redespliega automáticamente en ~2 minutos.
+Render redespliega automáticamente.
 
 ---
 
 ## 🔧 Problemas comunes
 
-**"Application error" al entrar**
-→ Ve a Web Service → **"Logs"** y busca el error rojo
-→ Asegúrate de haber ejecutado `python seed.py`
+**Error de SSL con Neon**
+→ Ya configurado en `config.py` con `sslmode=require` y `channel_binding=require`
 
-**La app tarda 20 segundos en cargar**
-→ Normal en el primer acceso (cold start). Configura UptimeRobot (Paso 8).
+**"too many connections" en Neon**
+→ Neon free permite 10 conexiones. Ya configurado con `pool_size=3`. Si persiste, en Neon dashboard activa **Connection Pooling** y usa la URL con puerto 6543.
 
-**Error de base de datos / "no such table"**
+**"no such table"**
 → Ejecuta `python seed.py` desde la Shell de Render
 
-**Build falla con error de pip**
-→ Verifica que `requirements.txt` exista y esté bien en GitHub
-
-**"postgres://" error**
-→ Ya está corregido en config.py — Render lo convierte a `postgresql://` automáticamente
-
----
-
-## 📊 Límites del plan gratuito
-
-| Recurso | Límite gratuito |
-|---|---|
-| Horas de servidor | 750 horas/mes (~25 días) |
-| RAM | 512 MB |
-| CPU | 0.1 CPU compartida |
-| Ancho de banda | 100 GB/mes |
-| Base de datos | 90 días gratis |
-| Dominios custom | ✅ Incluido |
-| HTTPS | ✅ Automático |
-| Cold start (sin UptimeRobot) | 15-30 segundos |
-| Cold start (con UptimeRobot) | ❌ No existe |
-
+**La app no carga (timeout)**
+→ Configura UptimeRobot (Paso 5)
