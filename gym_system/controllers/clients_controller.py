@@ -1,8 +1,11 @@
+import threading
+
 from flask import request, redirect, url_for, flash, render_template
 from database.models.client import Client
 from database.models.payment import Payment
 from database.models.attendance import Attendance
 from database.models.notifications import Notification
+from database.models.sales import Sale, SaleItem
 from database.db import db
 from services.audit_service import AuditService
 from utils.validators import validate_client
@@ -10,6 +13,23 @@ import pytz
 from datetime import datetime, date
 
 BOGOTA = pytz.timezone('America/Bogota')
+
+
+# ---------------------------------------------------------------------------
+# Helper: envía el email de bienvenida en un hilo separado para que la
+# respuesta HTTP sea inmediata y el worker de gunicorn no se quede esperando.
+# ---------------------------------------------------------------------------
+def _send_welcome_async(app, client_id: int):
+    """Ejecuta send_welcome() fuera del ciclo de la request."""
+    with app.app_context():
+        try:
+            from database.models.client import Client as _Client
+            from services.notification_service import NotificationService
+            client = _Client.query.get(client_id)
+            if client:
+                NotificationService.send_welcome(client)
+        except Exception:
+            pass  # Errores de email no deben tumbar el proceso background
 
 
 class ClientsController:
@@ -65,13 +85,22 @@ class ClientsController:
             db.session.add(client)
             db.session.commit()
             AuditService.log('create', 'clients', client.id, None, client.full_name)
-            try:
-                from services.notification_service import NotificationService
-                ok = NotificationService.send_welcome(client)
-                if not ok:
-                    flash('⚠️ Cliente registrado, pero no se pudo enviar el email de bienvenida.', 'warning')
-            except Exception as exc:
-                flash(f'⚠️ Cliente registrado, pero error al enviar email: {exc}', 'warning')
+
+            # ---------------------------------------------------------------
+            # FIX TIMEOUT: el email se dispara en un hilo separado.
+            # La respuesta HTTP llega de inmediato; el email viaja en segundo
+            # plano sin bloquear el worker de gunicorn.
+            # ---------------------------------------------------------------
+            if client.email:
+                from flask import current_app
+                app = current_app._get_current_object()
+                t = threading.Thread(
+                    target=_send_welcome_async,
+                    args=(app, client.id),
+                    daemon=True,
+                )
+                t.start()
+
             flash('Cliente registrado exitosamente.', 'success')
             return redirect(url_for('clients.index'))
         return render_template('clients/create_client.html')
@@ -104,7 +133,6 @@ class ClientsController:
     def deactivate(client_id):
         client = Client.query.get_or_404(client_id)
 
-        # Verificar membresías activas (pagos vigentes)
         today = datetime.now(BOGOTA).date()
         active_payment = Payment.query.filter(
             Payment.client_id == client_id,
@@ -139,15 +167,45 @@ class ClientsController:
         client = Client.query.get_or_404(client_id)
         name = client.full_name
 
-        # Eliminar registros relacionados en orden correcto (FKs)
+        # ---------------------------------------------------------------
+        # FIX FOREIGNKEYVIOLATION: hay que borrar en orden de dependencia.
+        #
+        # Árbol de FKs:
+        #   clients
+        #     ├── notifications  (client_id)
+        #     ├── attendances    (client_id)
+        #     ├── payments       (client_id)
+        #     └── sales          (client_id)
+        #           └── sale_items (sale_id)   ← había que borrar esto primero
+        #
+        # sale_items referencia a sales, así que se elimina antes que sales.
+        # ---------------------------------------------------------------
+
+        # 1. sale_items de las ventas de este cliente
+        sale_ids = [s.id for s in Sale.query.filter_by(client_id=client_id).all()]
+        if sale_ids:
+            SaleItem.query.filter(SaleItem.sale_id.in_(sale_ids)).delete(
+                synchronize_session=False
+            )
+
+        # 2. ventas
+        Sale.query.filter_by(client_id=client_id).delete()
+
+        # 3. resto de tablas dependientes
         Notification.query.filter_by(client_id=client_id).delete()
         Attendance.query.filter_by(client_id=client_id).delete()
         Payment.query.filter_by(client_id=client_id).delete()
+
+        # 4. el cliente
         db.session.delete(client)
         db.session.commit()
 
         AuditService.log('delete', 'clients', client_id, name, 'ELIMINADO PERMANENTEMENTE')
-        flash(f'Cliente {name} eliminado permanentemente. Su documento ya puede volver a registrarse.', 'success')
+        flash(
+            f'Cliente {name} eliminado permanentemente. '
+            'Su documento ya puede volver a registrarse.',
+            'success',
+        )
         return redirect(url_for('clients.index'))
 
     @staticmethod
