@@ -21,9 +21,15 @@ def login_required(f):
     return decorated
 
 def role_required(*roles):
+    """Requiere que el usuario tenga uno de los roles indicados.
+    Siempre debe usarse junto con @login_required (aplicado antes).
+    Si el usuario está autenticado pero no tiene el rol, retorna 403.
+    """
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
+            if 'user_id' not in session:
+                return redirect(url_for('auth.login'))
             if session.get('user_role') not in roles:
                 abort(403)
             return f(*args, **kwargs)

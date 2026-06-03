@@ -3,6 +3,16 @@ from database.db import db
 
 class InventoryService:
     @staticmethod
+    def build_movement(product_id, quantity, reason='Venta'):
+        """Crea un StockMovement sin hacer commit — para usarlo dentro de una transacción mayor."""
+        return StockMovement(
+            product_id=product_id,
+            movement_type='salida',
+            quantity=quantity,
+            reason=reason
+        )
+
+    @staticmethod
     def add_stock(product_id, quantity, reason='Entrada'):
         product = Product.query.get_or_404(product_id)
         product.quantity += quantity
