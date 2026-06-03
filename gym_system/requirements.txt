@@ -13,5 +13,4 @@ Pillow==10.1.0
 bcrypt==4.1.2
 WTForms==3.1.1
 requests==2.31.0
-gunicorn==21.2.0
-psycopg2-binary==2.9.9
+APScheduler==3.10.4

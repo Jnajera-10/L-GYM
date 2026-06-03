@@ -1,4 +1,0 @@
-from flask import Blueprint
-inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
-
-# Routes defined here
