@@ -21,11 +21,12 @@
                     <td>{{ s.sale_date.strftime('%d/%m/%Y %H:%M') }}</td>
                     <td>{{ s.items|length }} producto(s)</td>
                     <td>
+                        <a href="{{ url_for('sales.invoice', sid=s.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-file-invoice"></i>
+                        </a>
                         <form method="POST" action="{{ url_for('sales.delete', sid=s.id) }}" class="d-inline"
                               onsubmit="return confirm('¿Eliminar esta venta?')">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
                         </form>
                     </td>
                 </tr>
@@ -36,4 +37,5 @@
         </table>
     </div>
 </div>
+{% include 'layouts/_pagination.html' %}
 {% endblock %}

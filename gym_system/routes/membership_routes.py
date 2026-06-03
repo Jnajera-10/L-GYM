@@ -1,25 +1,28 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from database.models.membership import Membership
 from database.db import db
+from utils.security import login_required, role_required
 
 membership_bp = Blueprint('membership', __name__, url_prefix='/membership')
 
+
 @membership_bp.route('/')
+@login_required
 def index():
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
-    memberships = Membership.query.all()
+    # Solo membresías activas
+    memberships = Membership.query.filter_by(is_active=True).order_by(Membership.name).all()
     return render_template('memberships/memberships.html', memberships=memberships)
 
+
 @membership_bp.route('/create', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
 def create():
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
     if request.method == 'POST':
         m = Membership(
             name=request.form['name'],
             duration_days=int(request.form['duration_days']),
-            price=float(request.form['price'])
+            price=float(request.form['price']),
         )
         db.session.add(m)
         db.session.commit()
@@ -27,10 +30,11 @@ def create():
         return redirect(url_for('membership.index'))
     return render_template('memberships/create_membership.html')
 
+
 @membership_bp.route('/<int:mid>/edit', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
 def edit(mid):
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
     m = Membership.query.get_or_404(mid)
     if request.method == 'POST':
         m.name = request.form['name']
@@ -41,10 +45,11 @@ def edit(mid):
         return redirect(url_for('membership.index'))
     return render_template('memberships/create_membership.html', membership=m)
 
+
 @membership_bp.route('/<int:mid>/delete', methods=['POST'])
+@login_required
+@role_required('admin')
 def delete(mid):
-    if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
     m = Membership.query.get_or_404(mid)
     m.is_active = False
     db.session.commit()

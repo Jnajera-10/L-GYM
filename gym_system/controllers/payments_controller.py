@@ -6,23 +6,42 @@ from database.db import db
 from services.payment_service import PaymentService
 from services.audit_service import AuditService
 
+PER_PAGE = 30
+
+
 class PaymentsController:
+
     @staticmethod
     def index():
-        payments = Payment.query.filter_by(is_deleted=False).order_by(Payment.payment_date.desc()).all()
-        return render_template('payments/payments.html', payments=payments)
+        page = request.args.get('page', 1, type=int)
+        pagination = (
+            Payment.query
+            .filter_by(is_deleted=False)
+            .order_by(Payment.payment_date.desc())
+            .paginate(page=page, per_page=PER_PAGE, error_out=False)
+        )
+        return render_template(
+            'payments/payments.html',
+            payments=pagination.items,
+            pagination=pagination,
+        )
 
     @staticmethod
     def create():
-        clients = Client.query.filter_by(is_active=True).all()
-        memberships = Membership.query.filter_by(is_active=True).all()
+        clients = Client.query.filter_by(is_active=True).order_by(Client.full_name).all()
+        memberships = Membership.query.filter_by(is_active=True).order_by(Membership.name).all()
         if request.method == 'POST':
             payment = PaymentService.register_payment(request.form)
             if payment:
                 AuditService.log('create', 'payments', payment.id, None, str(payment.amount))
                 flash('Pago registrado correctamente.', 'success')
                 return redirect(url_for('payments.receipt', payment_id=payment.id))
-        return render_template('payments/create_payment.html', clients=clients, memberships=memberships)
+            flash('No se pudo registrar el pago.', 'danger')
+        return render_template(
+            'payments/create_payment.html',
+            clients=clients,
+            memberships=memberships,
+        )
 
     @staticmethod
     def receipt(payment_id):
@@ -34,5 +53,6 @@ class PaymentsController:
         payment = Payment.query.get_or_404(payment_id)
         payment.is_deleted = True
         db.session.commit()
+        AuditService.log('delete', 'payments', payment.id, str(payment.amount), 'eliminado')
         flash('Pago eliminado.', 'warning')
         return redirect(url_for('payments.index'))

@@ -9,12 +9,12 @@
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
             <thead class="table-dark">
-                <tr><th>Cliente</th><th>Membresía</th><th>Monto</th><th>Fecha Pago</th><th>Vencimiento</th><th>Método</th><th>Acciones</th></tr>
+                <tr><th>Cliente</th><th>Membresía</th><th>Monto</th><th>Fecha</th><th>Vencimiento</th><th>Método</th><th>Acciones</th></tr>
             </thead>
             <tbody>
                 {% for p in payments %}
                 <tr>
-                    <td>{{ p.client.full_name }}</td>
+                    <td><a href="{{ url_for('clients.detail', client_id=p.client.id) }}" class="text-decoration-none">{{ p.client.full_name }}</a></td>
                     <td>{{ p.membership.name }}</td>
                     <td>${{ '{:,.0f}'.format(p.amount) }}</td>
                     <td>{{ p.payment_date.strftime('%d/%m/%Y') }}</td>
@@ -34,4 +34,5 @@
         </table>
     </div>
 </div>
+{% include 'layouts/_pagination.html' %}
 {% endblock %}

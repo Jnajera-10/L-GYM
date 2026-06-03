@@ -6,22 +6,25 @@
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
             <thead class="table-dark">
-                <tr><th>Usuario</th><th>Acción</th><th>Tabla</th><th>Registro</th><th>Fecha</th></tr>
+                <tr><th>Usuario</th><th>Acción</th><th>Tabla</th><th>Registro</th><th>Valor Anterior</th><th>Valor Nuevo</th><th>Fecha</th></tr>
             </thead>
             <tbody>
                 {% for log in logs %}
                 <tr>
                     <td>{{ log.user.username if log.user else 'Sistema' }}</td>
-                    <td><span class="badge bg-{{ 'success' if log.action == 'create' else 'warning' if log.action == 'update' else 'danger' }}">{{ log.action }}</span></td>
+                    <td><span class="badge bg-{{ 'success' if log.action == 'create' else 'warning text-dark' if log.action == 'update' else 'danger' }}">{{ log.action }}</span></td>
                     <td>{{ log.table_name }}</td>
                     <td>#{{ log.record_id }}</td>
+                    <td class="text-muted small">{{ log.old_value or '—' }}</td>
+                    <td class="small">{{ log.new_value or '—' }}</td>
                     <td>{{ log.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="text-center text-muted py-4">No hay registros de auditoría.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">No hay registros de auditoría.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+{% include 'layouts/_pagination.html' %}
 {% endblock %}
