@@ -34,6 +34,12 @@ class PaymentsController:
             payment = PaymentService.register_payment(request.form)
             if payment:
                 AuditService.log('create', 'payments', payment.id, None, str(payment.amount))
+                # Enviar confirmación de pago por email
+                try:
+                    from services.notification_service import NotificationService
+                    NotificationService.send_payment_confirmation(payment)
+                except Exception:
+                    pass
                 flash('Pago registrado correctamente.', 'success')
                 return redirect(url_for('payments.receipt', payment_id=payment.id))
             flash('No se pudo registrar el pago.', 'danger')
