@@ -1,6 +1,8 @@
 from flask import request, redirect, url_for, flash, render_template
 from database.models.client import Client
 from database.models.payment import Payment
+from database.models.attendance import Attendance
+from database.models.notifications import Notification
 from database.db import db
 from services.audit_service import AuditService
 from utils.validators import validate_client
@@ -15,10 +17,15 @@ class ClientsController:
     @staticmethod
     def index():
         search = request.args.get('q', '')
+        show_inactive = request.args.get('inactivos') == '1'
         page = request.args.get('page', 1, type=int)
         per_page = 25
 
-        query = Client.query.filter(Client.is_active == True)
+        if show_inactive:
+            query = Client.query.filter(Client.is_active == False)
+        else:
+            query = Client.query.filter(Client.is_active == True)
+
         if search:
             query = query.filter(Client.full_name.ilike(f'%{search}%'))
 
@@ -30,6 +37,7 @@ class ClientsController:
             clients=pagination.items,
             pagination=pagination,
             search=search,
+            show_inactive=show_inactive,
         )
 
     @staticmethod
@@ -59,9 +67,11 @@ class ClientsController:
             AuditService.log('create', 'clients', client.id, None, client.full_name)
             try:
                 from services.notification_service import NotificationService
-                NotificationService.send_welcome(client)
-            except Exception:
-                pass
+                ok = NotificationService.send_welcome(client)
+                if not ok:
+                    flash('⚠️ Cliente registrado, pero no se pudo enviar el email de bienvenida.', 'warning')
+            except Exception as exc:
+                flash(f'⚠️ Cliente registrado, pero error al enviar email: {exc}', 'warning')
             flash('Cliente registrado exitosamente.', 'success')
             return redirect(url_for('clients.index'))
         return render_template('clients/create_client.html')
@@ -109,7 +119,6 @@ class ClientsController:
                 'Desactívalo igualmente solo si estás seguro.',
                 'warning',
             )
-            # Guardamos la intención en la sesión para confirmar en segundo clic
             from flask import session
             confirm_key = f'confirm_deactivate_{client_id}'
             if not session.get(confirm_key):
@@ -121,6 +130,24 @@ class ClientsController:
         db.session.commit()
         AuditService.log('delete', 'clients', client.id, 'activo', 'inactivo')
         flash(f'Cliente {client.full_name} desactivado.', 'warning')
+        return redirect(url_for('clients.index'))
+
+    @staticmethod
+    def delete(client_id):
+        """Elimina físicamente el cliente y todos sus registros relacionados.
+        Esto libera el documento para que se pueda volver a registrar."""
+        client = Client.query.get_or_404(client_id)
+        name = client.full_name
+
+        # Eliminar registros relacionados en orden correcto (FKs)
+        Notification.query.filter_by(client_id=client_id).delete()
+        Attendance.query.filter_by(client_id=client_id).delete()
+        Payment.query.filter_by(client_id=client_id).delete()
+        db.session.delete(client)
+        db.session.commit()
+
+        AuditService.log('delete', 'clients', client_id, name, 'ELIMINADO PERMANENTEMENTE')
+        flash(f'Cliente {name} eliminado permanentemente. Su documento ya puede volver a registrarse.', 'success')
         return redirect(url_for('clients.index'))
 
     @staticmethod

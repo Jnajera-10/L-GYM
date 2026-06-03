@@ -7,13 +7,27 @@
         <i class="fas fa-plus me-1"></i>Nuevo Cliente
     </a>
 </div>
-<form class="mb-3" method="GET">
-    <div class="input-group" style="max-width:400px">
-        <input type="text" name="q" class="form-control" placeholder="Buscar cliente..." value="{{ search }}">
-        <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
-        {% if search %}<a href="{{ url_for('clients.index') }}" class="btn btn-outline-danger"><i class="fas fa-times"></i></a>{% endif %}
-    </div>
-</form>
+
+<div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+    <form method="GET" class="d-flex gap-2">
+        <div class="input-group" style="max-width:350px">
+            <input type="text" name="q" class="form-control" placeholder="Buscar cliente..." value="{{ search }}">
+            {% if show_inactive %}<input type="hidden" name="inactivos" value="1">{% endif %}
+            <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+            {% if search %}<a href="{{ url_for('clients.index', inactivos='1' if show_inactive else '') }}" class="btn btn-outline-danger"><i class="fas fa-times"></i></a>{% endif %}
+        </div>
+    </form>
+    {% if show_inactive %}
+        <a href="{{ url_for('clients.index') }}" class="btn btn-outline-success btn-sm">
+            <i class="fas fa-user-check me-1"></i>Ver Activos
+        </a>
+    {% else %}
+        <a href="{{ url_for('clients.index', inactivos='1') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-user-slash me-1"></i>Ver Inactivos
+        </a>
+    {% endif %}
+</div>
+
 <div class="card shadow-sm">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
@@ -27,13 +41,22 @@
                     <td>{{ c.document_type }} {{ c.document_number }}</td>
                     <td>{{ c.phone or '—' }}</td>
                     <td><span class="badge bg-{{ 'success' if c.is_active else 'secondary' }}">{{ 'Activo' if c.is_active else 'Inactivo' }}</span></td>
-                    <td>
+                    <td class="d-flex gap-1 flex-wrap">
                         <a href="{{ url_for('clients.detail', client_id=c.id) }}" class="btn btn-sm btn-outline-primary">Ver</a>
                         <a href="{{ url_for('clients.edit', client_id=c.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                        {% if c.is_active %}
                         <form method="POST" action="{{ url_for('clients.deactivate', client_id=c.id) }}" class="d-inline"
                               onsubmit="return confirm('¿Desactivar a {{ c.full_name }}?')">
-                            <button class="btn btn-sm btn-outline-danger">Desactivar</button>
+                            <button class="btn btn-sm btn-outline-warning">Desactivar</button>
                         </form>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('clients.delete', client_id=c.id) }}" class="d-inline"
+                              onsubmit="return confirm('⚠️ ELIMINAR PERMANENTEMENTE a {{ c.full_name }}?\n\nSe borrarán todos sus pagos, asistencias y notificaciones.\nSu documento quedará libre para volver a registrarse.\n\nEsta acción NO se puede deshacer.')">
+                            <button class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash me-1"></i>Eliminar
+                            </button>
+                        </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}
