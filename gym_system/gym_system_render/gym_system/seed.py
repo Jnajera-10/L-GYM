@@ -1,3 +1,7 @@
+"""
+Run once after first deploy to create the admin user:
+  python seed.py
+"""
 from app import application
 from database.db import db
 from database.models.user import User
@@ -6,7 +10,8 @@ import bcrypt
 
 with application.app_context():
     db.create_all()
-    
+
+    # Create admin if not exists
     if not User.query.filter_by(username='admin').first():
         pw = bcrypt.hashpw('Admin2025!'.encode(), bcrypt.gensalt()).decode()
         admin = User(
@@ -19,9 +24,17 @@ with application.app_context():
         )
         db.session.add(admin)
 
+    # Default gym settings
     if not GymSettings.query.first():
-        settings = GymSettings(gym_name='Mi Gimnasio')
+        settings = GymSettings(
+            gym_name='Mi Gimnasio',
+            address='Ciudad, Colombia',
+            phone='300 000 0000',
+            email='info@gimnasio.com'
+        )
         db.session.add(settings)
 
     db.session.commit()
-    print('Base de datos lista')
+    print("✅ Base de datos inicializada.")
+    print("👤 Usuario: admin | Contraseña: Admin2025!")
+    print("⚠️  Cambia la contraseña después del primer inicio de sesión.")

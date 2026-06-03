@@ -1,0 +1,36 @@
+:root {
+    --gym-primary: #e63946;
+    --gym-dark: #1d1d2e;
+    --gym-accent: #f4a261;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f8f9fa;
+}
+
+.sidebar .nav-link {
+    padding: 10px 20px;
+    border-radius: 6px;
+    margin: 2px 8px;
+    transition: background 0.2s;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+    background: rgba(255,255,255,0.15);
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+}
+
+.badge { font-size: 0.8em; }
+
+.table th { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+
+@media (max-width: 768px) {
+    .sidebar { display: none; }
+}
