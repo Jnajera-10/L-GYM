@@ -2,54 +2,95 @@
 {% block title %}Reportes{% endblock %}
 {% block content %}
 <h4 class="mb-4"><i class="fas fa-chart-bar me-2"></i>Reportes</h4>
-<div class="row g-3">
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-users fa-2x text-primary mb-2"></i>
-                <h6>Reporte de Clientes</h6>
-                <p class="text-muted small">Total: {{ clients|length }} clientes activos</p>
-                <a href="{{ url_for('clients.index') }}" class="btn btn-outline-primary btn-sm">Ver Clientes</a>
+
+<!-- Clientes -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0"><i class="fas fa-users text-primary me-2"></i>Clientes</h6>
+                <small class="text-muted">{{ clients|length }} clientes activos</small>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('clients.index') }}" class="btn btn-outline-primary btn-sm">Ver</a>
+                <a href="{{ url_for('reports.excel_clients') }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-file-excel me-1"></i>Excel
+                </a>
+                <a href="{{ url_for('reports.pdf_clients') }}" class="btn btn-danger btn-sm">
+                    <i class="fas fa-file-pdf me-1"></i>PDF
+                </a>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-money-bill fa-2x text-success mb-2"></i>
-                <h6>Reporte de Pagos</h6>
-                <p class="text-muted small">Historial completo de pagos</p>
-                <a href="{{ url_for('payments.index') }}" class="btn btn-outline-success btn-sm">Ver Pagos</a>
+</div>
+
+<!-- Pagos -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0"><i class="fas fa-money-bill text-success me-2"></i>Pagos</h6>
+                <small class="text-muted">Historial completo de pagos</small>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('payments.index') }}" class="btn btn-outline-success btn-sm">Ver</a>
+                <a href="{{ url_for('reports.excel_payments') }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-file-excel me-1"></i>Excel
+                </a>
+                <a href="{{ url_for('reports.pdf_payments') }}" class="btn btn-danger btn-sm">
+                    <i class="fas fa-file-pdf me-1"></i>PDF
+                </a>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-shopping-cart fa-2x text-warning mb-2"></i>
-                <h6>Reporte de Ventas</h6>
-                <p class="text-muted small">Historial de ventas de suplementos</p>
-                <a href="{{ url_for('sales.index') }}" class="btn btn-outline-warning btn-sm">Ver Ventas</a>
+</div>
+
+<!-- Ventas -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0"><i class="fas fa-shopping-cart text-warning me-2"></i>Ventas</h6>
+                <small class="text-muted">Historial de ventas de productos</small>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('sales.index') }}" class="btn btn-outline-warning btn-sm">Ver</a>
+                <a href="{{ url_for('reports.excel_sales') }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-file-excel me-1"></i>Excel
+                </a>
+                <a href="{{ url_for('reports.pdf_sales') }}" class="btn btn-danger btn-sm">
+                    <i class="fas fa-file-pdf me-1"></i>PDF
+                </a>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-boxes fa-2x text-info mb-2"></i>
-                <h6>Reporte de Inventario</h6>
-                <p class="text-muted small">Estado actual del inventario</p>
-                <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-info btn-sm">Ver Inventario</a>
+</div>
+
+<!-- Inventario -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0"><i class="fas fa-boxes text-info me-2"></i>Inventario</h6>
+                <small class="text-muted">Estado actual del inventario</small>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-info btn-sm">Ver</a>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-calendar-check fa-2x text-secondary mb-2"></i>
-                <h6>Reporte de Asistencia</h6>
-                <p class="text-muted small">Control diario de asistencias</p>
-                <a href="{{ url_for('attendance.index') }}" class="btn btn-outline-secondary btn-sm">Ver Asistencia</a>
+</div>
+
+<!-- Asistencia -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0"><i class="fas fa-calendar-check text-secondary me-2"></i>Asistencia</h6>
+                <small class="text-muted">Control diario de asistencias</small>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('attendance.index') }}" class="btn btn-outline-secondary btn-sm">Ver</a>
             </div>
         </div>
     </div>

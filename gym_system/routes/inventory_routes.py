@@ -39,5 +39,31 @@ def add_stock(pid):
         return redirect(url_for('auth.login'))
     qty = int(request.form.get('quantity', 0))
     InventoryService.add_stock(pid, qty)
-    flash('Stock actualizado.', 'success')
+    flash('Stock agregado.', 'success')
+    return redirect(url_for('inventory.index'))
+
+@inventory_bp.route('/<int:pid>/edit', methods=['POST'])
+def edit(pid):
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+    p = Product.query.get_or_404(pid)
+    p.name = request.form['name']
+    p.category = request.form.get('category')
+    p.brand = request.form.get('brand')
+    p.purchase_price = float(request.form['purchase_price'])
+    p.sale_price = float(request.form['sale_price'])
+    p.min_stock = int(request.form.get('min_stock', 5))
+    p.quantity = int(request.form.get('quantity', p.quantity))
+    db.session.commit()
+    flash('Producto actualizado.', 'success')
+    return redirect(url_for('inventory.index'))
+
+@inventory_bp.route('/<int:pid>/delete', methods=['POST'])
+def delete(pid):
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+    p = Product.query.get_or_404(pid)
+    p.is_active = False
+    db.session.commit()
+    flash('Producto eliminado.', 'warning')
     return redirect(url_for('inventory.index'))

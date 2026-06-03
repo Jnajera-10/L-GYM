@@ -23,3 +23,13 @@ def register():
         AttendanceService.register(int(client_id))
         flash('Asistencia registrada.', 'success')
     return redirect(url_for('attendance.index'))
+
+@attendance_bp.route('/<int:aid>/delete', methods=['POST'])
+def delete(aid):
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+    a = Attendance.query.get_or_404(aid)
+    db.session.delete(a)
+    db.session.commit()
+    flash('Asistencia eliminada.', 'warning')
+    return redirect(url_for('attendance.index'))

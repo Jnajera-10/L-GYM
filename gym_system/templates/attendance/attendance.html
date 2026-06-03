@@ -17,7 +17,9 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-success w-100"><i class="fas fa-check me-1"></i>Registrar Asistencia</button>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-check me-1"></i>Registrar Asistencia
+                    </button>
                 </form>
             </div>
         </div>
@@ -28,15 +30,25 @@
                 <h6 class="fw-bold mb-3">Asistencias de Hoy <span class="badge bg-primary">{{ today_list|length }}</span></h6>
                 <div style="max-height:300px;overflow-y:auto">
                     <table class="table table-sm table-hover mb-0">
-                        <thead class="table-dark"><tr><th>Cliente</th><th>Hora</th></tr></thead>
+                        <thead class="table-dark">
+                            <tr><th>Cliente</th><th>Hora</th><th></th></tr>
+                        </thead>
                         <tbody>
                             {% for a in today_list %}
                             <tr>
                                 <td>{{ a.client.full_name }}</td>
                                 <td>{{ a.check_in.strftime('%H:%M') }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('attendance.delete', aid=a.id) }}"
+                                          onsubmit="return confirm('¿Eliminar este registro?')">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="2" class="text-center text-muted">Sin asistencias hoy.</td></tr>
+                            <tr><td colspan="3" class="text-center text-muted">Sin asistencias hoy.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

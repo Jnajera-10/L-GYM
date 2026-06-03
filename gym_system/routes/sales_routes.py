@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from database.models.sales import Sale
 from database.models.inventory import Product
 from database.models.client import Client
+from database.db import db
 from services.sales_service import SalesService
 
 sales_bp = Blueprint('sales', __name__, url_prefix='/sales')
@@ -32,3 +33,13 @@ def new():
             return redirect(url_for('sales.index'))
         flash('Agrega al menos un producto.', 'danger')
     return render_template('sales/new_sale.html', products=products, clients=clients)
+
+@sales_bp.route('/<int:sid>/delete', methods=['POST'])
+def delete(sid):
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+    sale = Sale.query.get_or_404(sid)
+    sale.is_deleted = True
+    db.session.commit()
+    flash('Venta eliminada.', 'warning')
+    return redirect(url_for('sales.index'))
