@@ -37,7 +37,6 @@
                         <a href="{{ url_for('clients.edit', client_id=c.id) }}" class="btn btn-sm btn-outline-secondary">Editar</a>
                         <form method="POST" action="{{ url_for('clients.deactivate', client_id=c.id) }}" class="d-inline"
                               onsubmit="return confirm('¿Desactivar este cliente?')">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-sm btn-outline-danger">Desactivar</button>
                         </form>
                     </td>
