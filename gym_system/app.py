@@ -55,3 +55,8 @@ if __name__ == '__main__':
 # so we expose it via a standalone route at module level)
 from routes.health_routes import health_bp
 application.register_blueprint(health_bp)
+
+# Inicializar DB automáticamente
+with application.app_context():
+    from database.db import db
+    db.create_all()
