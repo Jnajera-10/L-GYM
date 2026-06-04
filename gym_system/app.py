@@ -23,11 +23,12 @@ def create_app():
     from routes.backup_routes import backup_bp
     from routes.audit_routes import audit_bp
     from routes.health_routes import health_bp
+    from routes.email_test_routes import email_test_bp   # ← nuevo
 
     for bp in [auth_bp, user_bp, client_bp, membership_bp, payment_bp,
                attendance_bp, inventory_bp, sales_bp, dashboard_bp,
                reports_bp, notification_bp, settings_bp, backup_bp, audit_bp,
-               health_bp]:
+               health_bp, email_test_bp]:                # ← registrado
         app.register_blueprint(bp)
 
     @app.errorhandler(404)
