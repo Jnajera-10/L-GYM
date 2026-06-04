@@ -4,7 +4,7 @@ from database.models.inventory import Product
 from database.models.client import Client
 from database.db import db
 from services.sales_service import SalesService
-from utils.security import login_required
+from utils.security import login_required, admin_required
 
 sales_bp = Blueprint('sales', __name__, url_prefix='/sales')
 PER_PAGE = 30
@@ -51,7 +51,7 @@ def new():
 
 
 @sales_bp.route('/<int:sid>/delete', methods=['POST'])
-@login_required
+@admin_required
 def delete(sid):
     sale = Sale.query.get_or_404(sid)
     sale.is_deleted = True
@@ -63,6 +63,5 @@ def delete(sid):
 @sales_bp.route('/<int:sid>/invoice')
 @login_required
 def invoice(sid):
-    from database.models.sales import Sale
     sale = Sale.query.get_or_404(sid)
     return render_template('sales/invoice.html', sale=sale)

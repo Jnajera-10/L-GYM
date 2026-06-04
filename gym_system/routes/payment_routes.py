@@ -1,9 +1,10 @@
 from flask import Blueprint
 from controllers.payments_controller import PaymentsController
+from utils.security import login_required, admin_required
 
 payment_bp = Blueprint('payments', __name__, url_prefix='/payments')
 
-payment_bp.add_url_rule('/', 'index', PaymentsController.index)
-payment_bp.add_url_rule('/create', 'create', PaymentsController.create, methods=['GET', 'POST'])
-payment_bp.add_url_rule('/<int:payment_id>/receipt', 'receipt', PaymentsController.receipt)
-payment_bp.add_url_rule('/<int:payment_id>/delete', 'delete', PaymentsController.delete, methods=['POST'])
+payment_bp.add_url_rule('/', 'index', login_required(PaymentsController.index))
+payment_bp.add_url_rule('/create', 'create', login_required(PaymentsController.create), methods=['GET', 'POST'])
+payment_bp.add_url_rule('/<int:payment_id>/receipt', 'receipt', login_required(PaymentsController.receipt))
+payment_bp.add_url_rule('/<int:payment_id>/delete', 'delete', admin_required(PaymentsController.delete), methods=['POST'])

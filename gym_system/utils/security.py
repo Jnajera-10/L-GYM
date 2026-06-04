@@ -1,7 +1,7 @@
 import bcrypt
 import secrets
 from functools import wraps
-from flask import session, redirect, url_for, abort
+from flask import session, redirect, url_for, abort, flash
 
 def hash_password(password):
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
@@ -35,3 +35,15 @@ def role_required(*roles):
             return f(*args, **kwargs)
         return decorated
     return decorator
+
+def admin_required(f):
+    """Solo administradores pueden acceder. Redirige con mensaje si no tiene permiso."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('auth.login'))
+        if session.get('user_role') != 'admin':
+            flash('⛔ Solo el administrador puede realizar esta acción.', 'danger')
+            return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated

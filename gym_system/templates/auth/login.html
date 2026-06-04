@@ -5,41 +5,145 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Iniciar Sesión - Body-Fit</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {
+            background: radial-gradient(ellipse at center, #2a2a2a 0%, #111 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: #1c1c1c;
+            border: 1px solid #333;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            overflow: hidden;
+        }
+        .login-header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #222 100%);
+            padding: 2rem 2rem 1.2rem;
+            text-align: center;
+            border-bottom: 2px solid #f5c518;
+        }
+        .logo-img {
+            width: 130px;
+            height: 130px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 15px rgba(245, 197, 24, 0.4));
+        }
+        .login-body { padding: 2rem; }
+        .form-control {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+        }
+        .form-control:focus {
+            background: #2a2a2a;
+            border-color: #f5c518;
+            color: #fff;
+            box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.15);
+        }
+        .form-label { color: #bbb; font-size: 0.9rem; margin-bottom: 0.4rem; }
+        .btn-login {
+            background: linear-gradient(135deg, #f5c518, #d4a017);
+            border: none;
+            color: #111;
+            font-weight: 700;
+            font-size: 1rem;
+            border-radius: 10px;
+            padding: 0.75rem;
+            transition: all 0.2s;
+            letter-spacing: 0.03em;
+        }
+        .btn-login:hover {
+            background: linear-gradient(135deg, #ffd740, #f5c518);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(245, 197, 24, 0.35);
+        }
+        .form-check-input:checked { background-color: #f5c518; border-color: #f5c518; }
+        .form-check-label { color: #aaa; font-size: 0.85rem; }
+        .forgot-link { color: #f5c518; font-size: 0.85rem; text-decoration: none; }
+        .forgot-link:hover { color: #ffd740; }
+        .alert { border-radius: 10px; font-size: 0.9rem; }
+        /* responsive muy pequeño */
+        @media (max-width: 460px) {
+            .login-card { border-radius: 0; min-height: 100vh; justify-content: center; display: flex; flex-direction: column; }
+        }
+    </style>
 </head>
-<body class="bg-dark d-flex align-items-center justify-content-center vh-100">
-    <div class="card shadow-lg" style="width:400px">
-        <div class="card-body p-5">
-            <div class="text-center mb-4">
-                <i class="fas fa-dumbbell fa-3x text-primary"></i>
-                <h4 class="mt-2 fw-bold">Body-Fit</h4>
-                <p class="text-muted small">Gestión Integral de Gimnasio</p>
+<body>
+    <div class="login-card">
+        <div class="login-header">
+            <img src="{{ url_for('static', filename='img/logo.png') }}"
+                 alt="Body-Fit" class="logo-img"
+                 onerror="this.style.display='none'; document.getElementById('fallback-icon').style.display='block'">
+            <div id="fallback-icon" style="display:none">
+                <i class="fas fa-dumbbell fa-4x" style="color:#f5c518"></i>
             </div>
+            <p class="text-muted small mt-2 mb-0" style="color:#888 !important; letter-spacing:0.1em; font-size:0.75rem;">
+                GESTIÓN INTEGRAL DE GIMNASIO
+            </p>
+        </div>
+
+        <div class="login-body">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% for category, msg in messages %}
-                    <div class="alert alert-{{ category }}">{{ msg }}</div>
+                    <div class="alert alert-{{ category }} py-2">{{ msg }}</div>
                 {% endfor %}
             {% endwith %}
+
             <form method="POST">
                 <div class="mb-3">
-                    <label class="form-label">Usuario</label>
-                    <input type="text" name="username" class="form-control" required autofocus>
+                    <label class="form-label"><i class="fas fa-user me-1"></i>Usuario</label>
+                    <input type="text" name="username" class="form-control"
+                           placeholder="Ingresa tu usuario" required autofocus autocomplete="username">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Contraseña</label>
-                    <input type="password" name="password" class="form-control" required>
+                    <label class="form-label"><i class="fas fa-lock me-1"></i>Contraseña</label>
+                    <div class="input-group">
+                        <input type="password" name="password" id="passwordField"
+                               class="form-control" placeholder="••••••••" required autocomplete="current-password"
+                               style="border-right:none">
+                        <button type="button" class="btn btn-outline-secondary"
+                                style="border:1px solid #444; border-left:none; background:#2a2a2a; color:#aaa; border-radius:0 10px 10px 0;"
+                                onclick="togglePass()">
+                            <i class="fas fa-eye" id="eyeIcon"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="mb-3 form-check">
-                    <input type="checkbox" name="remember" class="form-check-input" id="remember">
-                    <label class="form-check-label" for="remember">Recordar sesión</label>
+                <div class="mb-4 d-flex justify-content-between align-items-center">
+                    <div class="form-check">
+                        <input type="checkbox" name="remember" class="form-check-input" id="remember">
+                        <label class="form-check-label" for="remember">Recordar sesión</label>
+                    </div>
+                    <a href="{{ url_for('auth.forgot_password') }}" class="forgot-link">¿Olvidaste tu contraseña?</a>
                 </div>
-                <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+                <button type="submit" class="btn btn-login w-100">
+                    <i class="fas fa-sign-in-alt me-2"></i>Ingresar
+                </button>
             </form>
-            <div class="text-center mt-3">
-                <a href="{{ url_for('auth.forgot_password') }}" class="text-muted small">¿Olvidaste tu contraseña?</a>
-            </div>
         </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js"></script>
+
+    <script>
+        function togglePass() {
+            const field = document.getElementById('passwordField');
+            const icon  = document.getElementById('eyeIcon');
+            if (field.type === 'password') {
+                field.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                field.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+    </script>
 </body>
 </html>

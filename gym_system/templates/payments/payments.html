@@ -3,35 +3,64 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4><i class="fas fa-money-bill me-2"></i>Pagos</h4>
-    <a href="{{ url_for('payments.create') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Nuevo Pago</a>
+    <a href="{{ url_for('payments.create') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>Nuevo Pago
+    </a>
 </div>
 <div class="card shadow-sm">
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
-            <thead class="table-dark">
-                <tr><th>Cliente</th><th>Membresía</th><th>Monto</th><th>Fecha</th><th>Vencimiento</th><th>Método</th><th>Acciones</th></tr>
-            </thead>
-            <tbody>
-                {% for p in payments %}
-                <tr>
-                    <td><a href="{{ url_for('clients.detail', client_id=p.client.id) }}" class="text-decoration-none">{{ p.client.full_name }}</a></td>
-                    <td>{{ p.membership.name }}</td>
-                    <td>${{ '{:,.0f}'.format(p.amount) }}</td>
-                    <td>{{ p.payment_date.strftime('%d/%m/%Y') }}</td>
-                    <td>{{ p.end_date.strftime('%d/%m/%Y') }}</td>
-                    <td>{{ p.payment_method }}</td>
-                    <td>
-                        <a href="{{ url_for('payments.receipt', payment_id=p.id) }}" class="btn btn-sm btn-outline-primary">Recibo</a>
-                        <form method="POST" action="{{ url_for('payments.delete', payment_id=p.id) }}" class="d-inline" onsubmit="return confirm('¿Eliminar pago?')">
-                            <button class="btn btn-sm btn-outline-danger">Eliminar</button>
-                        </form>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="7" class="text-center text-muted py-4">No hay pagos registrados.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Membresía</th>
+                        <th>Monto</th>
+                        <th>Fecha</th>
+                        <th>Vencimiento</th>
+                        <th>Método</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in payments %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('clients.detail', client_id=p.client.id) }}"
+                               class="text-decoration-none">{{ p.client.full_name }}</a>
+                        </td>
+                        <td>{{ p.membership.name }}</td>
+                        <td>${{ '{:,.0f}'.format(p.amount) }}</td>
+                        <td>{{ p.payment_date.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ p.end_date.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ p.payment_method }}</td>
+                        <td>
+                            <a href="{{ url_for('payments.receipt', payment_id=p.id) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-receipt me-1"></i>Recibo
+                            </a>
+                            {# Solo el administrador ve el botón eliminar #}
+                            {% if session.get('user_role') == 'admin' %}
+                            <form method="POST" action="{{ url_for('payments.delete', payment_id=p.id) }}"
+                                  class="d-inline"
+                                  onsubmit="return confirm('¿Eliminar este pago? Esta acción no se puede deshacer.')">
+                                <button class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash me-1"></i>Eliminar
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox me-2"></i>No hay pagos registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% include 'layouts/_pagination.html' %}
