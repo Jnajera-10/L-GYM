@@ -34,17 +34,16 @@ class PaymentsController:
         memberships = Membership.query.filter_by(is_active=True).order_by(Membership.name).all()
 
         if request.method == 'POST':
-            payment = PaymentService.register_payment(request.form)
-            if payment:
+            payment, error = PaymentService.register_payment(request.form)
+            if error:
+                flash(error, 'danger')
+            elif payment:
                 AuditService.log('create', 'payments', payment.id, None, str(payment.amount))
-
-                # --- Email de confirmación ---
                 _send_payment_email(payment)
-
                 flash('Pago registrado correctamente.', 'success')
                 return redirect(url_for('payments.receipt', payment_id=payment.id))
-
-            flash('No se pudo registrar el pago.', 'danger')
+            else:
+                flash('No se pudo registrar el pago.', 'danger')
 
         return render_template(
             'payments/create_payment.html',
@@ -71,10 +70,8 @@ def _send_payment_email(payment):
     """
     Envía el email de confirmación de pago.
     Separado para que cualquier error no bloquee el registro del pago.
-    Muestra un flash específico si algo falla.
     """
     try:
-        # Asegurarse de que las relaciones están cargadas
         client = payment.client
         membership = payment.membership
 
