@@ -24,5 +24,10 @@ class Client(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(BOGOTA))
     updated_at = db.Column(db.DateTime, onupdate=lambda: datetime.now(BOGOTA))
 
-    payments = db.relationship('Payment', backref='client', lazy=True)
+    payments = db.relationship(
+        'Payment',
+        foreign_keys='Payment.client_id',
+        backref='client',
+        lazy=True
+    )
     attendances = db.relationship('Attendance', backref='client', lazy=True)
