@@ -1,12 +1,64 @@
 {% extends "layouts/base.html" %}
 {% block title %}Pagos{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h4><i class="fas fa-money-bill me-2"></i>Pagos</h4>
     <a href="{{ url_for('payments.create') }}" class="btn btn-primary">
         <i class="fas fa-plus me-1"></i>Nuevo Pago
     </a>
 </div>
+
+{# ── FILTROS ─────────────────────────────────────────────────────── #}
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="GET" action="{{ url_for('payments.index') }}" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label small mb-1 text-muted">Buscar cliente</label>
+                <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm"
+                       placeholder="Nombre o documento…">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1 text-muted">Plan</label>
+                <select name="plan" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    {% for m in memberships %}
+                    <option value="{{ m.id }}" {{ 'selected' if plan_filter == m.id|string }}>{{ m.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1 text-muted">Método</label>
+                <select name="method" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="efectivo"      {{ 'selected' if method == 'efectivo' }}>Efectivo</option>
+                    <option value="transferencia" {{ 'selected' if method == 'transferencia' }}>Transferencia</option>
+                    <option value="nequi"         {{ 'selected' if method == 'nequi' }}>Nequi</option>
+                    <option value="daviplata"     {{ 'selected' if method == 'daviplata' }}>Daviplata</option>
+                    <option value="tarjeta"       {{ 'selected' if method == 'tarjeta' }}>Tarjeta</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1 text-muted">Desde</label>
+                <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small mb-1 text-muted">Hasta</label>
+                <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="fas fa-search"></i>
+                </button>
+                <a href="{{ url_for('payments.index') }}" class="btn btn-outline-secondary btn-sm w-100" title="Limpiar filtros">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ── TABLA ────────────────────────────────────────────────────────── #}
 <div class="card shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -16,14 +68,16 @@
                         <th>Cliente</th>
                         <th>Membresía</th>
                         <th>Monto</th>
-                        <th>Fecha</th>
+                        <th>Fecha Pago</th>
                         <th>Vencimiento</th>
+                        <th>Días restantes</th>
                         <th>Método</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in payments %}
+                    {% set dias = (p.end_date - today).days %}
                     <tr>
                         <td>
                             <a href="{{ url_for('clients.detail', client_id=p.client.id) }}"
@@ -33,19 +87,30 @@
                         <td>${{ '{:,.0f}'.format(p.amount) }}</td>
                         <td>{{ p.payment_date.strftime('%d/%m/%Y') }}</td>
                         <td>{{ p.end_date.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            {% if dias < 0 %}
+                                <span class="badge bg-secondary">Vencida</span>
+                            {% elif dias == 0 %}
+                                <span class="badge bg-danger">Vence hoy</span>
+                            {% elif dias <= 3 %}
+                                <span class="badge bg-warning text-dark">{{ dias }} día{{ 's' if dias != 1 }}</span>
+                            {% else %}
+                                <span class="badge bg-success">{{ dias }} días</span>
+                            {% endif %}
+                        </td>
                         <td>{{ p.payment_method }}</td>
                         <td>
                             <a href="{{ url_for('payments.receipt', payment_id=p.id) }}"
                                class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-receipt me-1"></i>Recibo
                             </a>
-                            {# Solo el administrador ve el botón eliminar #}
                             {% if session.get('user_role') == 'admin' %}
                             <form method="POST" action="{{ url_for('payments.delete', payment_id=p.id) }}"
                                   class="d-inline"
-                                  onsubmit="return confirm('¿Eliminar este pago? Esta acción no se puede deshacer.')">
+                                  onsubmit="return confirm('¿Eliminar este pago?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button class="btn btn-sm btn-outline-danger">
-                                    <i class="fas fa-trash me-1"></i>Eliminar
+                                    <i class="fas fa-trash"></i>
                                 </button>
                             </form>
                             {% endif %}
@@ -53,8 +118,8 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
-                            <i class="fas fa-inbox me-2"></i>No hay pagos registrados.
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox me-2"></i>No hay pagos que coincidan con los filtros.
                         </td>
                     </tr>
                     {% endfor %}

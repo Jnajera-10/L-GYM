@@ -1,3 +1,7 @@
+from datetime import datetime
+import pytz
+BOGOTA = pytz.timezone("America/Bogota")
+
 from flask import request, redirect, url_for, flash, render_template
 from database.models.payment import Payment
 from database.models.client import Client
@@ -66,11 +70,13 @@ class PaymentsController:
 
         memberships = Membership.query.filter_by(is_active=True).order_by(Membership.name).all()
 
+        today = datetime.now(BOGOTA).date()
         return render_template(
             'payments/payments.html',
             payments    = pagination.items,
             pagination  = pagination,
             memberships = memberships,
+            today       = today,
             # devolver filtros al template para mantenerlos en el form
             q           = q,
             plan_filter = plan_filter,
