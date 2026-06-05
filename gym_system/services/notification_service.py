@@ -207,3 +207,30 @@ class NotificationService:
         html = _base_template(subject, f'<p style="color:#555;">{body}</p>')
         ok, err = _send_brevo(to_email, subject, html)
         return _log_notification(client_id, 'email', subject[:100], ok, err)
+
+
+    @staticmethod
+    def send_couple_plan_notification(partner_payment, main_client):
+        """
+        Notifica al segundo cliente del Plan Pareja que su membresía
+        fue activada porque el cliente principal hizo el pago.
+        """
+        partner = partner_payment.client
+        if not partner or not partner.email:
+            return False
+        contenido = f"""
+        <p style="color:#333;font-size:16px;">Hola <strong>{partner.full_name}</strong>,</p>
+        <p style="color:#555;">
+          ¡Buenas noticias! <strong>{main_client.full_name}</strong> registró un
+          <strong>Plan Pareja</strong> y tu membresía ha sido activada también. 🎉
+        </p>
+        <table style="background:#f8f8f8;border-radius:6px;padding:16px;width:100%;margin:16px 0;">
+          <tr><td style="color:#666;padding:4px 0;"><strong>Plan:</strong></td><td style="color:#333;">{partner_payment.membership.name}</td></tr>
+          <tr><td style="color:#666;padding:4px 0;"><strong>Válido desde:</strong></td><td style="color:#333;">{partner_payment.start_date.strftime('%d/%m/%Y')}</td></tr>
+          <tr><td style="color:#666;padding:4px 0;"><strong>Vence el:</strong></td><td style="color:#e63946;font-weight:bold;">{partner_payment.end_date.strftime('%d/%m/%Y')}</td></tr>
+        </table>
+        <p style="color:#555;">¡Nos vemos en el gym! 💪</p>
+        """
+        html = _base_template('¡Tu Plan Pareja está activo! 💑', contenido)
+        ok, err = _send_brevo(partner.email, '💑 Tu Plan Pareja en Body-Fit está activo', html)
+        return _log_notification(partner.id, 'email', 'Plan Pareja activado', ok, err)

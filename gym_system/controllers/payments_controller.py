@@ -15,31 +15,89 @@ class PaymentsController:
 
     @staticmethod
     def index():
-        page = request.args.get('page', 1, type=int)
-        pagination = (
-            Payment.query
-            .filter_by(is_deleted=False)
-            .order_by(Payment.payment_date.desc())
-            .paginate(page=page, per_page=PER_PAGE, error_out=False)
+        page   = request.args.get('page', 1, type=int)
+        # ── Filtros ──────────────────────────────────────────────
+        q           = request.args.get('q', '').strip()          # búsqueda por nombre/doc
+        plan_filter = request.args.get('plan', '').strip()       # membresía id
+        method      = request.args.get('method', '').strip()     # método de pago
+        date_from   = request.args.get('date_from', '').strip()
+        date_to     = request.args.get('date_to', '').strip()
+
+        query = Payment.query.filter_by(is_deleted=False)
+
+        if q:
+            query = (
+                query
+                .join(Client, Payment.client_id == Client.id)
+                .filter(
+                    db.or_(
+                        Client.full_name.ilike(f'%{q}%'),
+                        Client.document_number.ilike(f'%{q}%'),
+                    )
+                )
+            )
+
+        if plan_filter:
+            try:
+                query = query.filter(Payment.membership_id == int(plan_filter))
+            except ValueError:
+                pass
+
+        if method:
+            query = query.filter(Payment.payment_method == method)
+
+        if date_from:
+            try:
+                from datetime import datetime
+                query = query.filter(Payment.payment_date >= datetime.strptime(date_from, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+
+        if date_to:
+            try:
+                from datetime import datetime
+                query = query.filter(Payment.payment_date <= datetime.strptime(date_to, '%Y-%m-%d').date())
+            except ValueError:
+                pass
+
+        pagination = query.order_by(Payment.payment_date.desc()).paginate(
+            page=page, per_page=PER_PAGE, error_out=False
         )
+
+        memberships = Membership.query.filter_by(is_active=True).order_by(Membership.name).all()
+
         return render_template(
             'payments/payments.html',
-            payments=pagination.items,
-            pagination=pagination,
+            payments    = pagination.items,
+            pagination  = pagination,
+            memberships = memberships,
+            # devolver filtros al template para mantenerlos en el form
+            q           = q,
+            plan_filter = plan_filter,
+            method      = method,
+            date_from   = date_from,
+            date_to     = date_to,
         )
 
     @staticmethod
     def create():
-        clients = Client.query.filter_by(is_active=True).order_by(Client.full_name).all()
+        clients     = Client.query.filter_by(is_active=True).order_by(Client.full_name).all()
         memberships = Membership.query.filter_by(is_active=True).order_by(Membership.name).all()
 
         if request.method == 'POST':
-            payment, error = PaymentService.register_payment(request.form)
+            payment, partner_payment, error = PaymentService.register_payment(request.form)
             if error:
                 flash(error, 'danger')
             elif payment:
                 AuditService.log('create', 'payments', payment.id, None, str(payment.amount))
                 _send_payment_email(payment)
+
+                # Plan Pareja: notificar también al segundo cliente
+                if partner_payment:
+                    AuditService.log('create', 'payments', partner_payment.id, None, 'Plan Pareja (espejo)')
+                    _send_couple_email(partner_payment, payment.client)
+                    flash(f'✅ Membresía activada también para el segundo cliente del Plan Pareja.', 'info')
+
                 flash('Pago registrado correctamente.', 'success')
                 return redirect(url_for('payments.receipt', payment_id=payment.id))
             else:
@@ -47,8 +105,8 @@ class PaymentsController:
 
         return render_template(
             'payments/create_payment.html',
-            clients=clients,
-            memberships=memberships,
+            clients     = clients,
+            memberships = memberships,
         )
 
     @staticmethod
@@ -66,49 +124,39 @@ class PaymentsController:
         return redirect(url_for('payments.index'))
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Helpers de email
+# ──────────────────────────────────────────────────────────────────────
 def _send_payment_email(payment):
-    """
-    Envía el email de confirmación de pago.
-    Separado para que cualquier error no bloquee el registro del pago.
-    """
     try:
         client = payment.client
-        membership = payment.membership
-
-        if not client:
-            flash('⚠️ Pago registrado, pero el cliente no se encontró para enviar el email.', 'warning')
-            logger.error(f'[EMAIL] payment_id={payment.id} — client es None')
+        if not client or not client.email:
             return
-
-        if not client.email:
-            logger.info(f'[EMAIL] Cliente {client.full_name} no tiene email registrado, no se envía confirmación.')
-            return
-
-        if not membership:
-            flash('⚠️ Pago registrado, pero la membresía no se encontró para enviar el email.', 'warning')
-            logger.error(f'[EMAIL] payment_id={payment.id} — membership es None')
-            return
-
         import os
-        if not os.environ.get('BREVO_API_KEY'):
-            flash('⚠️ Pago registrado. Email no enviado: falta BREVO_API_KEY en las variables de entorno de Render.', 'warning')
-            logger.warning('[EMAIL] BREVO_API_KEY no definida')
+        if not os.environ.get('BREVO_API_KEY') or not os.environ.get('MAIL_FROM'):
+            flash('⚠️ Pago registrado. Email no enviado: revisa BREVO_API_KEY y MAIL_FROM en Render.', 'warning')
             return
-
-        if not os.environ.get('MAIL_FROM'):
-            flash('⚠️ Pago registrado. Email no enviado: falta MAIL_FROM en las variables de entorno de Render.', 'warning')
-            logger.warning('[EMAIL] MAIL_FROM no definida')
-            return
-
         from services.notification_service import NotificationService
         ok = NotificationService.send_payment_confirmation(payment)
-
-        if not ok:
-            flash('⚠️ Pago registrado, pero el email de confirmación falló. '
-                  'Revisa el módulo de Notificaciones para ver el error.', 'warning')
-        else:
+        if ok:
             flash(f'📧 Confirmación enviada a {client.email}', 'info')
-
+        else:
+            flash('⚠️ Pago registrado, pero el email de confirmación falló.', 'warning')
     except Exception as exc:
-        logger.error(f'[EMAIL] Error inesperado enviando email pago {payment.id}: {exc}', exc_info=True)
-        flash(f'⚠️ Pago registrado, pero error al enviar email: {str(exc)[:120]}', 'warning')
+        logger.error(f'[EMAIL] Error pago {payment.id}: {exc}', exc_info=True)
+        flash(f'⚠️ Pago registrado, pero error al enviar email.', 'warning')
+
+
+def _send_couple_email(partner_payment, main_client):
+    """Notifica al segundo cliente del Plan Pareja."""
+    try:
+        partner = partner_payment.client
+        if not partner or not partner.email:
+            return
+        import os
+        if not os.environ.get('BREVO_API_KEY') or not os.environ.get('MAIL_FROM'):
+            return
+        from services.notification_service import NotificationService
+        NotificationService.send_couple_plan_notification(partner_payment, main_client)
+    except Exception as exc:
+        logger.error(f'[EMAIL] Error Plan Pareja notificación: {exc}', exc_info=True)
