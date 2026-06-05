@@ -108,7 +108,6 @@
                             <form method="POST" action="{{ url_for('payments.delete', payment_id=p.id) }}"
                                   class="d-inline"
                                   onsubmit="return confirm('¿Eliminar este pago?')">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button class="btn btn-sm btn-outline-danger">
                                     <i class="fas fa-trash"></i>
                                 </button>

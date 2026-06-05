@@ -67,7 +67,6 @@
                         <form method="POST" action="{{ url_for('user.deactivate', user_id=u.id) }}"
                               class="d-inline"
                               onsubmit="return confirm('¿Desactivar usuario {{ u.username }}?')">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-sm btn-outline-danger" {{ 'disabled' if u.role == 'admin' }}>
                                 Desactivar
                             </button>
