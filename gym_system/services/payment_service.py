@@ -56,7 +56,7 @@ class PaymentService:
             partner_payment = Payment(
                 client_id        = partner_client_id,
                 membership_id    = int(form_data['membership_id']),
-                amount           = 0,           # el costo ya se cobró en el pago principal
+                amount           = 0,
                 start_date       = start_date,
                 end_date         = end_date,
                 payment_method   = form_data.get('payment_method', 'efectivo'),
@@ -76,7 +76,7 @@ class PaymentService:
         today = datetime.now(BOGOTA).date()
         payments = Payment.query.filter(
             Payment.payment_date == today,
-            Payment.is_deleted == False
+            Payment.is_deleted   == False,
         ).all()
         return sum(p.amount for p in payments)
 
@@ -87,6 +87,17 @@ class PaymentService:
         payments = Payment.query.filter(
             extract('month', Payment.payment_date) == now.month,
             extract('year',  Payment.payment_date) == now.year,
-            Payment.is_deleted == False
+            Payment.is_deleted == False,
         ).all()
         return sum(p.amount for p in payments)
+
+    @staticmethod
+    def month_payments_raw():
+        """Retorna todos los pagos del mes actual (para desglose por método)."""
+        now = datetime.now(BOGOTA)
+        from sqlalchemy import extract
+        return Payment.query.filter(
+            extract('month', Payment.payment_date) == now.month,
+            extract('year',  Payment.payment_date) == now.year,
+            Payment.is_deleted == False,
+        ).all()

@@ -10,9 +10,32 @@
 
     <div class="ms-auto d-flex align-items-center gap-3">
         <span class="text-light small d-none d-sm-inline" id="colombiaTime"></span>
-        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-light btn-sm">
-            <i class="fas fa-sign-out-alt me-1"></i>
-            <span class="d-none d-sm-inline">Salir</span>
-        </a>
+
+        {# ── Menú de usuario: nombre + perfil + salir ── #}
+        <div class="dropdown">
+            <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-user-circle me-1"></i>
+                <span class="d-none d-sm-inline">{{ session.get('user_username', 'Usuario') }}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('profile.index') }}">
+                        <i class="fas fa-id-badge me-2"></i>Mi Perfil
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('profile.index') }}#pw_form">
+                        <i class="fas fa-key me-2"></i>Cambiar Contraseña
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                        <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                    </a>
+                </li>
+            </ul>
+        </div>
     </div>
 </nav>

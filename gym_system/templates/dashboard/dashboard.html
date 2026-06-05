@@ -2,6 +2,8 @@
 {% block title %}Dashboard - Body-Fit{% endblock %}
 {% block content %}
 <h4 class="mb-4"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h4>
+
+{# ── Tarjetas de resumen ───────────────────────────────────────────── #}
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
         <div class="card text-center border-primary">
@@ -20,46 +22,214 @@
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="card text-center border-warning">
-            <div class="card-body">
-                <div class="fs-1 fw-bold text-warning">{{ stats.expiring_soon }}</div>
-                <div class="text-muted small">Próximas a Vencer</div>
+        <a href="#expiring-section" class="text-decoration-none">
+            <div class="card text-center border-warning {% if stats.expiring_soon > 0 %}bg-warning bg-opacity-10{% endif %}">
+                <div class="card-body">
+                    <div class="fs-1 fw-bold text-warning">{{ stats.expiring_soon }}</div>
+                    <div class="text-muted small">Próximas a Vencer</div>
+                    {% if stats.expiring_soon > 0 %}
+                    <div class="small text-warning fw-semibold">↓ ver lista</div>
+                    {% endif %}
+                </div>
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-6 col-md-3">
-        <div class="card text-center border-danger">
+        <a href="#expired-section" class="text-decoration-none">
+            <div class="card text-center border-danger {% if stats.expired > 0 %}bg-danger bg-opacity-10{% endif %}">
+                <div class="card-body">
+                    <div class="fs-1 fw-bold text-danger">{{ stats.expired }}</div>
+                    <div class="text-muted small">Membresías Vencidas</div>
+                    {% if stats.expired > 0 %}
+                    <div class="small text-danger fw-semibold">↓ ver lista</div>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+{# ── Caja del día: ingresos + desglose por método ─────────────────── #}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header fw-semibold">
+                <i class="fas fa-cash-register me-2 text-success"></i>Caja de Hoy
+            </div>
             <div class="card-body">
-                <div class="fs-1 fw-bold text-danger">{{ stats.expired }}</div>
-                <div class="text-muted small">Membresías Vencidas</div>
+                <div class="fs-4 fw-bold text-success mb-3">${{ '{:,.0f}'.format(stats.today_income) }}</div>
+                {% if cash_breakdown %}
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        {% for method, total in cash_breakdown.items() | sort %}
+                        <tr>
+                            <td class="text-muted small ps-0">
+                                {% if method == 'efectivo' %}<i class="fas fa-money-bill-wave me-1 text-success"></i>
+                                {% elif method == 'nequi' %}<i class="fas fa-mobile-alt me-1 text-purple" style="color:#7c3aed"></i>
+                                {% elif method == 'transferencia' %}<i class="fas fa-university me-1 text-info"></i>
+                                {% elif method == 'tarjeta' %}<i class="fas fa-credit-card me-1 text-primary"></i>
+                                {% else %}<i class="fas fa-coins me-1 text-secondary"></i>{% endif %}
+                                {{ method | capitalize }}
+                            </td>
+                            <td class="text-end fw-semibold small">${{ '{:,.0f}'.format(total) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted small mb-0">Sin ingresos registrados hoy.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header fw-semibold">
+                <i class="fas fa-chart-line me-2 text-primary"></i>Ingresos del Mes
+            </div>
+            <div class="card-body">
+                <div class="fs-4 fw-bold text-primary mb-3">${{ '{:,.0f}'.format(stats.month_income) }}</div>
+                {% if month_breakdown %}
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        {% for method, total in month_breakdown.items() | sort %}
+                        <tr>
+                            <td class="text-muted small ps-0">
+                                {% if method == 'efectivo' %}<i class="fas fa-money-bill-wave me-1 text-success"></i>
+                                {% elif method == 'nequi' %}<i class="fas fa-mobile-alt me-1" style="color:#7c3aed"></i>
+                                {% elif method == 'transferencia' %}<i class="fas fa-university me-1 text-info"></i>
+                                {% elif method == 'tarjeta' %}<i class="fas fa-credit-card me-1 text-primary"></i>
+                                {% else %}<i class="fas fa-coins me-1 text-secondary"></i>{% endif %}
+                                {{ method | capitalize }}
+                            </td>
+                            <td class="text-end fw-semibold small">${{ '{:,.0f}'.format(total) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted small mb-0">Sin ingresos este mes.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                    <h6 class="text-muted">Asistencias Hoy</h6>
+                    <div class="fs-4 fw-bold text-info">{{ stats.today_attendance }}</div>
+                </div>
+                <div class="mt-3">
+                    <h6 class="text-muted">Stock Bajo</h6>
+                    <div class="fs-4 fw-bold {{ 'text-danger' if stats.low_stock > 0 else 'text-secondary' }}">
+                        {{ stats.low_stock }}
+                        {% if stats.low_stock > 0 %}
+                        <a href="{{ url_for('inventory.alerts') }}" class="btn btn-sm btn-outline-danger ms-2">Ver</a>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
-<div class="row g-3">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="text-muted">Ingresos del Día</h6>
-                <div class="fs-4 fw-bold text-success">${{ '{:,.0f}'.format(stats.today_income) }}</div>
-            </div>
-        </div>
+
+{# ── Alertas accionables: próximas a vencer ───────────────────────── #}
+{% if expiring_payments %}
+<div id="expiring-section" class="card shadow-sm border-warning mb-4">
+    <div class="card-header bg-warning bg-opacity-10 fw-semibold text-warning">
+        <i class="fas fa-clock me-2"></i>
+        Membresías por vencer en los próximos 3 días
+        <span class="badge bg-warning text-dark ms-1">{{ expiring_payments|length }}</span>
     </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="text-muted">Ingresos del Mes</h6>
-                <div class="fs-4 fw-bold text-primary">${{ '{:,.0f}'.format(stats.month_income) }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h6 class="text-muted">Asistencias Hoy</h6>
-                <div class="fs-4 fw-bold text-info">{{ stats.today_attendance }}</div>
-            </div>
-        </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Cliente</th>
+                    <th>Plan</th>
+                    <th>Vence</th>
+                    <th>Días</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in expiring_payments %}
+                {% set days_left = (p.end_date - today).days %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('clients.detail', client_id=p.client.id) }}"
+                           class="text-decoration-none fw-semibold">
+                            {{ p.client.full_name }}
+                        </a>
+                    </td>
+                    <td class="text-muted small">{{ p.membership.name }}</td>
+                    <td>{{ p.end_date.strftime('%d/%m/%Y') }}</td>
+                    <td>
+                        <span class="badge {{ 'bg-danger' if days_left == 0 else 'bg-warning text-dark' }}">
+                            {{ 'Vence hoy' if days_left == 0 else days_left ~ ' día' ~ ('s' if days_left != 1) }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('payments.renew', client_id=p.client.id, membership_id=p.membership.id) }}"
+                           class="btn btn-sm btn-success py-0 px-2">
+                            <i class="fas fa-sync-alt me-1"></i>Renovar
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
+{% endif %}
+
+{# ── Alertas accionables: ya vencidas ─────────────────────────────── #}
+{% if expired_payments %}
+<div id="expired-section" class="card shadow-sm border-danger mb-4">
+    <div class="card-header bg-danger bg-opacity-10 fw-semibold text-danger">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Membresías vencidas recientes
+        <span class="badge bg-danger ms-1">{{ stats.expired }}</span>
+        {% if stats.expired > 10 %}
+        <span class="text-muted small ms-2">(mostrando las 10 más recientes)</span>
+        {% endif %}
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Cliente</th>
+                    <th>Plan</th>
+                    <th>Venció</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in expired_payments %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('clients.detail', client_id=p.client.id) }}"
+                           class="text-decoration-none fw-semibold">
+                            {{ p.client.full_name }}
+                        </a>
+                    </td>
+                    <td class="text-muted small">{{ p.membership.name }}</td>
+                    <td class="text-danger small">{{ p.end_date.strftime('%d/%m/%Y') }}</td>
+                    <td>
+                        <a href="{{ url_for('payments.renew', client_id=p.client.id, membership_id=p.membership.id) }}"
+                           class="btn btn-sm btn-outline-success py-0 px-2">
+                            <i class="fas fa-sync-alt me-1"></i>Renovar
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

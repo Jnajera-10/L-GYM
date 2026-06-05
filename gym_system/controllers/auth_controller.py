@@ -11,9 +11,10 @@ class AuthController:
             remember = request.form.get('remember', False)
             user, error = AuthService.authenticate(username, password)
             if user:
-                session['user_id'] = user.id
-                session['user_role'] = user.role
-                session.permanent = bool(remember)
+                session['user_id']       = user.id
+                session['user_role']     = user.role
+                session['user_username'] = user.username   # ← para el navbar
+                session.permanent        = bool(remember)
                 return redirect(url_for('dashboard.index'))
             flash(error, 'danger')
         return render_template('auth/login.html')
