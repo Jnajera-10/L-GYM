@@ -52,14 +52,12 @@ class PaymentsController:
 
         if date_from:
             try:
-                from datetime import datetime
                 query = query.filter(Payment.payment_date >= datetime.strptime(date_from, '%Y-%m-%d').date())
             except ValueError:
                 pass
 
         if date_to:
             try:
-                from datetime import datetime
                 query = query.filter(Payment.payment_date <= datetime.strptime(date_to, '%Y-%m-%d').date())
             except ValueError:
                 pass

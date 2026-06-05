@@ -20,20 +20,20 @@ def _clients_with_active_membership():
     """
     today = datetime.now(BOGOTA).date()
     # Subconsulta: IDs de clientes con pago activo hoy
-    active_ids = (
-        db.session.query(Payment.client_id)
-        .filter(
+    from sqlalchemy import select
+    active_ids_select = (
+        select(Payment.client_id)
+        .where(
             Payment.is_deleted == False,
             Payment.start_date <= today,
             Payment.end_date   >= today,
         )
         .distinct()
-        .subquery()
     )
     return (
         Client.query
         .filter(Client.is_active == True)
-        .filter(Client.id.in_(active_ids))
+        .filter(Client.id.in_(active_ids_select))
         .order_by(Client.full_name)
         .all()
     )
