@@ -23,14 +23,26 @@ def create_app():
     from routes.backup_routes import backup_bp
     from routes.audit_routes import audit_bp
     from routes.health_routes import health_bp
-    from routes.email_test_routes import email_test_bp
-    from routes.profile_routes import profile_bp   # ← nuevo
+    from routes.profile_routes import profile_bp
 
     for bp in [auth_bp, user_bp, client_bp, membership_bp, payment_bp,
                attendance_bp, inventory_bp, sales_bp, dashboard_bp,
                reports_bp, notification_bp, settings_bp, backup_bp, audit_bp,
-               health_bp, email_test_bp, profile_bp]:   # ← registrado
+               health_bp, profile_bp]:
         app.register_blueprint(bp)
+
+    # El módulo de prueba de emails solo se activa si ENABLE_EMAIL_TEST=true
+    # en las variables de entorno de Render. En producción esta var NO existe,
+    # así que la ruta /email-test queda completamente desregistrada.
+    email_test_enabled = os.environ.get('ENABLE_EMAIL_TEST', '').lower() == 'true'
+    if email_test_enabled:
+        from routes.email_test_routes import email_test_bp
+        app.register_blueprint(email_test_bp)
+
+    # Inyectar email_test_enabled en todos los templates (para el sidebar)
+    @app.context_processor
+    def inject_globals():
+        return {'email_test_enabled': email_test_enabled}
 
     @app.errorhandler(404)
     def not_found(e):
