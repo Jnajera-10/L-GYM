@@ -3,7 +3,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
 
 
-def _fmt_date(value, fmt='%d/%m/%Y %H:%M'):
+def _fmt_date(value, fmt='%d/%m/%Y'):
     if value is None:
         return 'N/A'
     try:
@@ -15,12 +15,13 @@ def _fmt_date(value, fmt='%d/%m/%Y %H:%M'):
 
 
 class ExportService:
+
     @staticmethod
     def _header_style(ws, headers):
         ws.append(headers)
         for cell in ws[1]:
-            cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = PatternFill("solid", fgColor="1a1a2e")
+            cell.font      = Font(bold=True, color="FFFFFF")
+            cell.fill      = PatternFill("solid", fgColor="1a1a2e")
             cell.alignment = Alignment(horizontal="center")
 
     @staticmethod
@@ -71,11 +72,11 @@ class ExportService:
             ws.append([
                 p.id,
                 p.client.full_name if p.client else 'N/A',
-                p.membership.name if p.membership else 'N/A',
+                p.membership.name  if p.membership else 'N/A',
                 p.amount,
-                str(p.payment_date) if p.payment_date else '',
-                str(p.start_date) if p.start_date else '',
-                str(p.end_date) if p.end_date else '',
+                _fmt_date(p.payment_date),
+                _fmt_date(p.start_date),
+                _fmt_date(p.end_date),
                 p.payment_method or '',
             ])
         ExportService._auto_width(ws)
@@ -98,9 +99,54 @@ class ExportService:
                 s.client.full_name if s.client else 'Cliente general',
                 s.total,
                 s.payment_method or '',
-                _fmt_date(s.sale_date),       # protegido contra None
+                _fmt_date(s.sale_date, '%d/%m/%Y %H:%M'),
                 len(s.items) if s.items else 0,
             ])
+        ExportService._auto_width(ws)
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return buf
+
+    @staticmethod
+    def export_expired_excel(payments, today, label='Vencidas'):
+        """
+        Exporta lista de membresías vencidas o por vencer.
+        Incluye nombre, teléfono y email para que el recepcionista
+        pueda contactar a los clientes directamente.
+        """
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = label[:31]  # Excel limita a 31 chars el nombre de hoja
+
+        ExportService._header_style(ws, [
+            'Cliente', 'Teléfono', 'Email',
+            'Plan', 'Venció / Vence', 'Días',
+        ])
+
+        for p in payments:
+            dias = (p.end_date - today).days  # negativo = ya venció
+            ws.append([
+                p.client.full_name if p.client else 'N/A',
+                p.client.phone     if p.client else '',
+                p.client.email     if p.client else '',
+                p.membership.name  if p.membership else 'N/A',
+                _fmt_date(p.end_date),
+                dias,
+            ])
+
+        # Colorear filas por urgencia
+        red    = PatternFill("solid", fgColor="FFCCCC")
+        yellow = PatternFill("solid", fgColor="FFF3CD")
+        for row in ws.iter_rows(min_row=2):
+            try:
+                dias_val = int(row[5].value)
+            except (TypeError, ValueError):
+                continue
+            fill = red if dias_val < 0 else yellow
+            for cell in row:
+                cell.fill = fill
+
         ExportService._auto_width(ws)
         buf = BytesIO()
         wb.save(buf)

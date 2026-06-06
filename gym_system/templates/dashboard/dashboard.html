@@ -139,10 +139,20 @@
 {# ── Alertas accionables: próximas a vencer ───────────────────────── #}
 {% if expiring_payments %}
 <div id="expiring-section" class="card shadow-sm border-warning mb-4">
-    <div class="card-header bg-warning bg-opacity-10 fw-semibold text-warning">
-        <i class="fas fa-clock me-2"></i>
-        Membresías por vencer en los próximos 3 días
-        <span class="badge bg-warning text-dark ms-1">{{ expiring_payments|length }}</span>
+    <div class="card-header bg-warning bg-opacity-10 fw-semibold text-warning d-flex justify-content-between align-items-center">
+        <span>
+            <i class="fas fa-clock me-2"></i>
+            Membresías por vencer en los próximos 3 días
+            <span class="badge bg-warning text-dark ms-1">{{ expiring_payments|length }}</span>
+        </span>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('reports.excel_expiring') }}" class="btn btn-success btn-sm py-0">
+                <i class="fas fa-file-excel me-1"></i>Excel
+            </a>
+            <a href="{{ url_for('reports.pdf_expiring') }}" class="btn btn-danger btn-sm py-0">
+                <i class="fas fa-file-pdf me-1"></i>PDF
+            </a>
+        </div>
     </div>
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
@@ -189,13 +199,23 @@
 {# ── Alertas accionables: ya vencidas ─────────────────────────────── #}
 {% if expired_payments %}
 <div id="expired-section" class="card shadow-sm border-danger mb-4">
-    <div class="card-header bg-danger bg-opacity-10 fw-semibold text-danger">
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        Membresías vencidas recientes
-        <span class="badge bg-danger ms-1">{{ stats.expired }}</span>
-        {% if stats.expired > 10 %}
-        <span class="text-muted small ms-2">(mostrando las 10 más recientes)</span>
-        {% endif %}
+    <div class="card-header bg-danger bg-opacity-10 fw-semibold text-danger d-flex justify-content-between align-items-center">
+        <span>
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Membresías vencidas recientes
+            <span class="badge bg-danger ms-1">{{ stats.expired }}</span>
+            {% if stats.expired > 10 %}
+            <span class="text-muted small ms-2">(mostrando las 10 más recientes)</span>
+            {% endif %}
+        </span>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('reports.excel_expired') }}" class="btn btn-success btn-sm py-0">
+                <i class="fas fa-file-excel me-1"></i>Excel
+            </a>
+            <a href="{{ url_for('reports.pdf_expired') }}" class="btn btn-danger btn-sm py-0">
+                <i class="fas fa-file-pdf me-1"></i>PDF
+            </a>
+        </div>
     </div>
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
