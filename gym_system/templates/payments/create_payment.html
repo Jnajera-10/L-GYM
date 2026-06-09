@@ -155,13 +155,36 @@
                 {# ── Método de pago ── #}
                 <div class="col-md-4">
                     <label class="form-label">Método de Pago</label>
-                    <select name="payment_method" class="form-select">
+                    <select name="payment_method" id="payment_method" class="form-select">
                         <option value="efectivo">Efectivo</option>
                         <option value="transferencia">Transferencia</option>
                         <option value="tarjeta">Tarjeta</option>
+                        <option value="datafono">Datáfono</option>
                         <option value="nequi">Nequi</option>
                         <option value="daviplata">Daviplata</option>
                     </select>
+                </div>
+
+                {# ── Efectivo: billete recibido y vuelto ── #}
+                <div class="col-12" id="cash_section">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label">Efectivo recibido</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="cash_received" id="cash_received"
+                                       class="form-control" min="0" step="1000"
+                                       placeholder="Ej: 100000">
+                            </div>
+                            <div class="form-text">¿Cuánto entregó el cliente?</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-warning mb-0 py-2 px-3" id="vuelto_preview" style="display:none">
+                                <i class="fas fa-coins me-1"></i>
+                                Vuelto: <strong id="vuelto_label">$0</strong>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {# ── Preview vencimiento ── #}
@@ -293,6 +316,46 @@ const amountInput   = document.getElementById('amount');
 const startInput    = document.getElementById('start_date');
 const endPreview    = document.getElementById('end_date_preview');
 const endLabel      = document.getElementById('end_date_label');
+const payMethodSel  = document.getElementById('payment_method');
+const cashSection   = document.getElementById('cash_section');
+const cashReceived  = document.getElementById('cash_received');
+const vueltoPreview = document.getElementById('vuelto_preview');
+const vueltoLabel   = document.getElementById('vuelto_label');
+
+// ── Mostrar/ocultar sección efectivo ─────────────────────────────
+function updateCashSection() {
+    const isEfectivo = payMethodSel.value === 'efectivo';
+    cashSection.style.display = isEfectivo ? '' : 'none';
+    if (!isEfectivo) {
+        cashReceived.value = '';
+        vueltoPreview.style.display = 'none';
+    }
+}
+
+// ── Calcular vuelto en tiempo real ────────────────────────────────
+function updateVuelto() {
+    const monto    = parseFloat(amountInput.value)  || 0;
+    const recibido = parseFloat(cashReceived.value) || 0;
+    if (recibido > 0 && monto > 0) {
+        const vuelto = recibido - monto;
+        if (vuelto >= 0) {
+            vueltoLabel.textContent = '$' + vuelto.toLocaleString('es-CO');
+            vueltoPreview.style.display = '';
+            vueltoPreview.className = 'alert mb-0 py-2 px-3 ' + (vuelto === 0 ? 'alert-success' : 'alert-warning');
+        } else {
+            vueltoLabel.textContent = 'Monto insuficiente';
+            vueltoPreview.style.display = '';
+            vueltoPreview.className = 'alert mb-0 py-2 px-3 alert-danger';
+        }
+    } else {
+        vueltoPreview.style.display = 'none';
+    }
+}
+
+payMethodSel.addEventListener('change', updateCashSection);
+cashReceived.addEventListener('input',  updateVuelto);
+amountInput.addEventListener('input',   updateVuelto);
+updateCashSection();
 
 let familiarCount = 3;
 const MAX_FAMILIAR = 6;
