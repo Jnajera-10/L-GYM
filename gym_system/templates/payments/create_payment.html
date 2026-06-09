@@ -1,20 +1,37 @@
 {% extends "layouts/base.html" %}
 {% block title %}Nuevo Pago{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" rel="stylesheet">
+<style>
+  .select2-container--default .select2-selection--single {
+    height: 38px; border: 1px solid #ced4da; border-radius: 6px;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px; padding-left: 10px; color: #212529;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px;
+  }
+  .select2-container { width: 100% !important; }
+  .select2-dropdown { border: 1px solid #ced4da; border-radius: 6px; }
+  .select2-results__option--highlighted { background-color: #0d6efd !important; }
+</style>
+{% endblock %}
+
 {% block content %}
 <h4 class="mb-4"><i class="fas fa-money-bill me-2"></i>Registrar Pago</h4>
 <div class="card shadow-sm">
     <div class="card-body">
         <form method="POST" id="payment_form">
+
             <div class="row g-3">
 
                 {# ── Cliente titular ── #}
                 <div class="col-md-6">
                     <label class="form-label">Cliente Titular *</label>
-                    <select name="client_id" id="client_id" class="form-select" required>
-                        <option value="">Selecciona cliente...</option>
-                        {% for c in clients %}
-                        <option value="{{ c.id }}">{{ c.full_name }} — {{ c.document_number }}</option>
-                        {% endfor %}
+                    <select name="client_id" id="client_id" class="form-select client-search" required>
+                        <option value="">Buscar cliente por nombre o documento...</option>
                     </select>
                 </div>
 
@@ -27,6 +44,7 @@
                         <option value="{{ m.id }}"
                             data-price="{{ m.price }}"
                             data-type="{{ m.membership_type }}"
+                            data-duration="{{ m.duration_days }}"
                             data-student="{{ 'true' if m.requires_student else 'false' }}">
                             {{ m.name }} — ${{ '{:,.0f}'.format(m.price) }}
                             {% if m.is_couple_plan %} 👫{% endif %}
@@ -36,17 +54,15 @@
                     </select>
                 </div>
 
-                {# ── Plan Pareja: segundo cliente (se muestra solo cuando aplica) ── #}
+                {# ── Plan Pareja: segundo cliente ── #}
                 <div class="col-md-6" id="partner_section" style="display:none">
                     <label class="form-label">
                         Cliente Pareja *
                         <span class="text-muted small">(Plan Pareja: obligatorio)</span>
                     </label>
-                    <select name="partner_client_id" id="partner_client_id" class="form-select">
-                        <option value="">Selecciona el segundo cliente...</option>
-                        {% for c in clients %}
-                        <option value="{{ c.id }}">{{ c.full_name }} — {{ c.document_number }}</option>
-                        {% endfor %}
+                    <select name="partner_client_id" id="partner_client_id"
+                            class="form-select client-search">
+                        <option value="">Buscar segundo cliente...</option>
                     </select>
                     <div class="form-text text-info">
                         <i class="fas fa-info-circle me-1"></i>
@@ -54,7 +70,7 @@
                     </div>
                 </div>
 
-                {# ── Plan Estudiantil: confirmación bachiller ── #}
+                {# ── Plan Estudiantil ── #}
                 <div class="col-md-6" id="student_section" style="display:none">
                     <div class="card border-warning h-100">
                         <div class="card-body py-2">
@@ -67,13 +83,13 @@
                                 </label>
                             </div>
                             <div class="form-text text-warning mt-1">
-                                Este plan es exclusivo para bachilleres. Debes marcar esta casilla para continuar.
+                                Este plan es exclusivo para bachilleres.
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {# ── Plan Familiar: 3 a 6 miembros ── #}
+                {# ── Plan Familiar ── #}
                 <div class="col-12" id="familiar_section" style="display:none">
                     <div class="card border-info">
                         <div class="card-header fw-semibold bg-info bg-opacity-10">
@@ -82,17 +98,17 @@
                         <div class="card-body">
                             <div class="row g-2" id="familiar_members">
                                 {% for i in range(2, 7) %}
-                                <div class="col-md-6 familiar-member-row" id="familiar_row_{{ i }}" {% if i > 3 %}style="display:none"{% endif %}>
+                                <div class="col-md-6 familiar-member-row" id="familiar_row_{{ i }}"
+                                     {% if i > 3 %}style="display:none"{% endif %}>
                                     <label class="form-label small fw-semibold">Miembro {{ i }}
-                                        {% if i <= 3 %}<span class="text-danger">*</span>{% else %}<span class="text-muted">(opcional)</span>{% endif %}
+                                        {% if i <= 3 %}<span class="text-danger">*</span>
+                                        {% else %}<span class="text-muted">(opcional)</span>{% endif %}
                                     </label>
-                                    <select name="familiar_member_{{ i }}" id="familiar_member_{{ i }}"
-                                            class="form-select familiar-member-select"
+                                    <select name="familiar_member_{{ i }}"
+                                            id="familiar_member_{{ i }}"
+                                            class="form-select client-search familiar-member-select"
                                             {% if i <= 3 %}required{% endif %}>
-                                        <option value="">Selecciona cliente...</option>
-                                        {% for c in clients %}
-                                        <option value="{{ c.id }}">{{ c.full_name }} — {{ c.document_number }}</option>
-                                        {% endfor %}
+                                        <option value="">Buscar cliente...</option>
                                     </select>
                                 </div>
                                 {% endfor %}
@@ -101,10 +117,13 @@
                                 <button type="button" class="btn btn-outline-info btn-sm" id="add_familiar_btn">
                                     <i class="fas fa-user-plus me-1"></i>Agregar miembro
                                 </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" id="remove_familiar_btn" style="display:none">
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        id="remove_familiar_btn" style="display:none">
                                     <i class="fas fa-user-minus me-1"></i>Quitar último
                                 </button>
-                                <span class="text-muted small align-self-center" id="familiar_count_label">3 miembros seleccionados</span>
+                                <span class="text-muted small align-self-center" id="familiar_count_label">
+                                    3 miembros seleccionados
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -136,7 +155,7 @@
                     </select>
                 </div>
 
-                {# ── Vista previa de fecha de vencimiento ── #}
+                {# ── Preview vencimiento ── #}
                 <div class="col-12" id="end_date_preview" style="display:none">
                     <div class="alert alert-secondary py-2 mb-0">
                         <i class="fas fa-calendar-times me-1"></i>
@@ -162,8 +181,36 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
 <script>
-// Duración en días por membresía (inyectada desde el select)
+// ── Inicializar Select2 con búsqueda AJAX en todos los selectores de cliente ──
+function initClientSearch(selector) {
+    $(selector).select2({
+        placeholder: 'Buscar por nombre o documento...',
+        allowClear: true,
+        minimumInputLength: 1,
+        language: {
+            inputTooShort: function() { return 'Escribe al menos 1 letra...'; },
+            noResults:     function() { return 'No se encontró el cliente'; },
+            searching:     function() { return 'Buscando...'; },
+        },
+        ajax: {
+            url: '/clients/search',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) { return { q: params.term }; },
+            processResults: function(data) { return { results: data }; },
+            cache: true,
+        },
+    });
+}
+
+// Inicializar todos los client-search al cargar
+document.querySelectorAll('.client-search').forEach(function(el) {
+    initClientSearch('#' + el.id);
+});
+
+// ── Lógica de membresía ────────────────────────────────────────────
 const membershipSel = document.getElementById('membership_id');
 const partnerSec    = document.getElementById('partner_section');
 const partnerSel    = document.getElementById('partner_client_id');
@@ -175,21 +222,22 @@ const startInput    = document.getElementById('start_date');
 const endPreview    = document.getElementById('end_date_preview');
 const endLabel      = document.getElementById('end_date_label');
 
-// ── Familiar: lógica agregar/quitar miembros ──────────────────────
-let familiarCount = 3;  // mínimo 3 (titular + 2)
+let familiarCount = 3;
 const MAX_FAMILIAR = 6;
 
 document.getElementById('add_familiar_btn').addEventListener('click', function() {
     if (familiarCount >= MAX_FAMILIAR) return;
     familiarCount++;
-    document.getElementById('familiar_row_' + familiarCount).style.display = '';
+    const row = document.getElementById('familiar_row_' + familiarCount);
+    row.style.display = '';
+    initClientSearch('#familiar_member_' + familiarCount);
     updateFamiliarUI();
 });
 
 document.getElementById('remove_familiar_btn').addEventListener('click', function() {
     if (familiarCount <= 3) return;
     const row = document.getElementById('familiar_row_' + familiarCount);
-    row.querySelector('select').value = '';
+    $('#familiar_member_' + familiarCount).val(null).trigger('change');
     row.style.display = 'none';
     familiarCount--;
     updateFamiliarUI();
@@ -197,16 +245,8 @@ document.getElementById('remove_familiar_btn').addEventListener('click', functio
 
 function updateFamiliarUI() {
     document.getElementById('familiar_count_label').textContent = familiarCount + ' miembros seleccionados';
-    document.getElementById('add_familiar_btn').disabled    = familiarCount >= MAX_FAMILIAR;
+    document.getElementById('add_familiar_btn').disabled = familiarCount >= MAX_FAMILIAR;
     document.getElementById('remove_familiar_btn').style.display = familiarCount > 3 ? '' : 'none';
-}
-
-// Mapa de duración para cada opción
-function getDurationDays() {
-    const opt = membershipSel.options[membershipSel.selectedIndex];
-    // Obtenemos duración del data-price no existe, lo calculamos en backend.
-    // Aquí solo mostramos preview usando el mismo cálculo: start + (days-1)
-    return parseInt(opt.dataset.duration || '0');
 }
 
 function addDays(dateStr, days) {
@@ -215,47 +255,32 @@ function addDays(dateStr, days) {
     return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-// Inyectar duration en cada option (via JS, leyendo del servidor no disponible aquí;
-// usaremos un data attribute que el servidor debe pasar — ver nota abajo)
-// Como alternativa: hacemos fetch al cambiar, o el server renderiza data-duration.
-// Por ahora mostramos la preview solo si hay data-duration en el option.
-
 function updateUI() {
     const opt = membershipSel.options[membershipSel.selectedIndex];
     if (!opt || !opt.value) {
-        partnerSec.style.display = 'none';
-        studentSec.style.display = 'none';
-        endPreview.style.display = 'none';
+        partnerSec.style.display  = 'none';
+        studentSec.style.display  = 'none';
+        familiarSec.style.display = 'none';
+        endPreview.style.display  = 'none';
         partnerSel.required = false;
         studentChk.required = false;
         return;
     }
 
-    const mtype   = opt.dataset.type || '';
-    const isFamiliar  = mtype === 'familiar';
-    const isCouple    = mtype === 'pareja';
-    const isStudent   = mtype === 'estudiantil';
-    const price     = opt.dataset.price;
-    const duration  = parseInt(opt.dataset.duration || '0');
+    const mtype    = opt.dataset.type || '';
+    const price    = opt.dataset.price;
+    const duration = parseInt(opt.dataset.duration || '0');
 
-    // Precio
     if (price) amountInput.value = price;
 
-    // Plan pareja
-    partnerSec.style.display = isCouple ? '' : 'none';
-    partnerSel.required      = isCouple;
+    partnerSec.style.display  = mtype === 'pareja'      ? '' : 'none';
+    partnerSel.required       = mtype === 'pareja';
+    studentSec.style.display  = mtype === 'estudiantil' ? '' : 'none';
+    studentChk.required       = mtype === 'estudiantil';
+    familiarSec.style.display = mtype === 'familiar'    ? '' : 'none';
 
-    // Plan estudiantil
-    studentSec.style.display = isStudent ? '' : 'none';
-    studentChk.required      = isStudent;
-
-    // Plan familiar
-    familiarSec.style.display = isFamiliar ? '' : 'none';
-
-    // Preview vencimiento
     if (duration > 0 && startInput.value) {
-        const end = addDays(startInput.value, duration - 1);
-        endLabel.textContent     = end;
+        endLabel.textContent     = addDays(startInput.value, duration - 1);
         endPreview.style.display = '';
     } else {
         endPreview.style.display = 'none';
@@ -263,16 +288,14 @@ function updateUI() {
 }
 
 membershipSel.addEventListener('change', updateUI);
-startInput.addEventListener('change', updateUI);
+startInput.addEventListener('change',    updateUI);
 
-// Validación al enviar
+// ── Validación al enviar ───────────────────────────────────────────
 document.getElementById('payment_form').addEventListener('submit', function(e) {
     const opt = membershipSel.options[membershipSel.selectedIndex];
     if (!opt || !opt.value) return;
-
     const mtype = opt.dataset.type || '';
 
-    // Plan pareja: segundo cliente distinto al titular
     if (mtype === 'pareja') {
         const titularId = document.getElementById('client_id').value;
         const partId    = partnerSel.value;
@@ -288,30 +311,28 @@ document.getElementById('payment_form').addEventListener('submit', function(e) {
         }
     }
 
-    // Plan estudiantil: checkbox obligatorio
     if (mtype === 'estudiantil' && !studentChk.checked) {
         e.preventDefault();
         alert('Debes confirmar que el cliente es estudiante de bachillerato para este plan.');
         return;
     }
 
-    // Plan familiar: mínimo 3, máximo 6, sin repetidos
     if (mtype === 'familiar') {
         const titularId = document.getElementById('client_id').value;
         const ids = [titularId];
         for (let i = 2; i <= familiarCount; i++) {
-            const sel = document.getElementById('familiar_member_' + i);
-            if (!sel.value) {
+            const val = document.getElementById('familiar_member_' + i).value;
+            if (!val) {
                 e.preventDefault();
-                alert('El Plan Familiar requiere mínimo 3 integrantes. Completa todos los campos.');
+                alert('El Plan Familiar requiere completar todos los integrantes seleccionados.');
                 return;
             }
-            if (ids.includes(sel.value)) {
+            if (ids.includes(val)) {
                 e.preventDefault();
                 alert('No puedes agregar el mismo cliente dos veces en el Plan Familiar.');
                 return;
             }
-            ids.push(sel.value);
+            ids.push(val);
         }
         if (ids.length < 3) {
             e.preventDefault();

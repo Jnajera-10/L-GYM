@@ -1,6 +1,6 @@
 import threading
 
-from flask import request, redirect, url_for, flash, render_template
+from flask import request, redirect, url_for, flash, render_template, jsonify
 from database.models.client import Client
 from database.models.payment import Payment
 from database.models.attendance import Attendance
@@ -33,6 +33,24 @@ def _send_welcome_async(app, client_id: int):
 
 
 class ClientsController:
+
+    @staticmethod
+    def search():
+        """AJAX: devuelve JSON con clientes activos que coincidan con ?q=texto"""
+        q = request.args.get('q', '').strip()
+        query = Client.query.filter_by(is_active=True)
+        if q:
+            query = query.filter(
+                db.or_(
+                    Client.full_name.ilike(f'%{q}%'),
+                    Client.document_number.ilike(f'%{q}%'),
+                )
+            )
+        clients = query.order_by(Client.full_name).limit(20).all()
+        return jsonify([
+            {'id': c.id, 'text': f'{c.full_name} — {c.document_number}'}
+            for c in clients
+        ])
 
     @staticmethod
     def index():
