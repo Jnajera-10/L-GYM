@@ -6,7 +6,10 @@
         <div class="card shadow">
             <div class="card-body p-4">
                 <div class="text-center mb-3">
-                    <h5 class="fw-bold">RECIBO DE PAGO</h5>
+                    <img src="{{ url_for('static', filename='img/logo.jpg') }}"
+                         alt="Body-Fit Logo"
+                         style="width:80px;height:80px;object-fit:cover;border-radius:50%;border:3px solid #ffc107;margin-bottom:10px;">
+                    <h5 class="fw-bold mb-0">RECIBO DE PAGO</h5>
                     <small class="text-muted">N° {{ payment.id }}</small>
                 </div>
                 <table class="table table-bordered">

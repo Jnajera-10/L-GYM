@@ -4,8 +4,11 @@
         <i class="fas fa-bars"></i>
     </button>
 
-    <a class="navbar-brand fw-bold" href="/">
-        <i class="fas fa-dumbbell me-2"></i>Body-Fit
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+        <img src="{{ url_for('static', filename='img/logo.jpg') }}"
+             alt="Body-Fit Logo"
+             style="height:38px;width:38px;object-fit:cover;border-radius:50%;">
+        <span class="fw-bold">Body-Fit</span>
     </a>
 
     <div class="ms-auto d-flex align-items-center gap-3">

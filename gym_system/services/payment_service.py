@@ -1,6 +1,7 @@
 from database.models.payment import Payment, _get_shift
 from database.models.membership import Membership
 from database.models.client import Client
+from database.models.attendance import Attendance
 from database.db import db
 import pytz
 from datetime import datetime, timedelta
@@ -77,6 +78,30 @@ class PaymentService:
                 partner_client_id= int(form_data['client_id']),
             )
             db.session.add(partner_payment)
+
+        db.session.commit()
+
+        # ── Asistencia automática al registrar pago ────────────────────
+        # Se registra la asistencia del día para el cliente principal
+        # y para el segundo cliente si es Plan Pareja.
+        now_bogota = datetime.now(BOGOTA)
+        today      = now_bogota.date()
+
+        for client_id_att in set(filter(None, [
+            int(form_data['client_id']),
+            partner_client_id,   # None si no es Plan Pareja
+        ])):
+            # Evitar duplicar si ya tiene asistencia hoy
+            ya_asistio = Attendance.query.filter(
+                Attendance.client_id == client_id_att,
+                db.func.date(Attendance.check_in) == today,
+            ).first()
+            if not ya_asistio:
+                db.session.add(Attendance(
+                    client_id = client_id_att,
+                    check_in  = now_bogota,
+                    notes     = 'Asistencia registrada automáticamente al pagar',
+                ))
 
         db.session.commit()
         return payment, partner_payment, None

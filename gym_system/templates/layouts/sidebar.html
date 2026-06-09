@@ -8,6 +8,14 @@
         </button>
     </div>
 
+    <!-- Logo en el sidebar -->
+    <div class="text-center py-3 border-bottom border-secondary mx-2 mb-1">
+        <img src="{{ url_for('static', filename='img/logo.jpg') }}"
+             alt="Body-Fit"
+             style="width:80px;height:80px;object-fit:cover;border-radius:50%;border:2px solid #ffc107;">
+        <div class="text-warning fw-bold mt-2" style="font-size:13px;letter-spacing:1px;">BODY-FIT GYM</div>
+    </div>
+
     <nav class="nav flex-column pt-2">
         <a class="nav-link text-light" href="/"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
         <a class="nav-link text-light" href="/clients"><i class="fas fa-users me-2"></i>Clientes</a>
