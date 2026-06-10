@@ -26,13 +26,25 @@
 
 {% block content %}
 <h4 class="mb-4"><i class="fas fa-money-bill me-2"></i>Registrar Pago</h4>
+
+{# ── Contador de pagos diarios de hoy ── #}
+<div id="daily_counter_banner" style="display:none">
+    <div class="alert alert-info d-flex align-items-center gap-3 mb-3 py-2">
+        <i class="fas fa-calendar-day fa-lg"></i>
+        <div>
+            <strong>Pagos diarios registrados hoy:</strong>
+            <span class="badge bg-primary fs-6 ms-2" id="daily_count_badge">{{ daily_count_today }}</span>
+        </div>
+    </div>
+</div>
+
 <div class="card shadow-sm">
     <div class="card-body">
         <form method="POST" id="payment_form">
             <div class="row g-3">
 
                 {# ── Cliente titular ── #}
-                <div class="col-md-6">
+                <div class="col-md-6" id="client_section">
                     <label class="form-label">Cliente Titular *</label>
                     <div class="client-autocomplete-wrapper">
                         <input type="text" id="client_id_text"
@@ -42,6 +54,16 @@
                         <input type="hidden" name="client_id" id="client_id_hidden" required>
                         <div class="client-dropdown" id="client_id_dropdown"></div>
                     </div>
+                </div>
+
+                {# ── Aviso Plan Diario: no requiere cliente ── #}
+                <div class="col-md-6" id="diario_client_notice" style="display:none">
+                    <label class="form-label">Cliente</label>
+                    <div class="alert alert-secondary py-2 mb-0">
+                        <i class="fas fa-info-circle me-1"></i>
+                        El plan <strong>Diario</strong> se registra bajo el cliente genérico <strong>DIARIO</strong> — no es necesario seleccionar un cliente.
+                    </div>
+                    <input type="hidden" name="client_id" id="client_id_hidden_diario">
                 </div>
 
                 {# ── Membresía ── #}
@@ -322,6 +344,32 @@ const cashReceived  = document.getElementById('cash_received');
 const vueltoPreview = document.getElementById('vuelto_preview');
 const vueltoLabel   = document.getElementById('vuelto_label');
 
+// ── Secciones cliente diario vs normal ────────────────────────────
+const clientSection      = document.getElementById('client_section');
+const diarioNotice       = document.getElementById('diario_client_notice');
+const clientHiddenNormal = document.getElementById('client_id_hidden');
+const clientHiddenDiario = document.getElementById('client_id_hidden_diario');
+const dailyBanner        = document.getElementById('daily_counter_banner');
+
+function updateClientSection(mtype) {
+    if (mtype === 'diario') {
+        clientSection.style.display  = 'none';
+        diarioNotice.style.display   = '';
+        dailyBanner.style.display    = '';
+        // Quitar required del hidden normal para que no bloquee el form
+        clientHiddenNormal.removeAttribute('required');
+        clientHiddenNormal.name = '';           // no se envía
+        clientHiddenDiario.name = 'client_id';  // sí se envía (vacío, el backend usará DIARIO)
+    } else {
+        clientSection.style.display  = '';
+        diarioNotice.style.display   = 'none';
+        dailyBanner.style.display    = 'none';
+        clientHiddenNormal.setAttribute('required', '');
+        clientHiddenNormal.name = 'client_id';
+        clientHiddenDiario.name = '';
+    }
+}
+
 // ── Mostrar/ocultar sección efectivo ─────────────────────────────
 function updateCashSection() {
     const isEfectivo = payMethodSel.value === 'efectivo';
@@ -396,6 +444,7 @@ function updateUI() {
         studentSec.style.display  = 'none';
         familiarSec.style.display = 'none';
         endPreview.style.display  = 'none';
+        updateClientSection('');
         return;
     }
     const mtype    = opt.dataset.type || '';
@@ -403,6 +452,8 @@ function updateUI() {
     const duration = parseInt(opt.dataset.duration || '0');
 
     if (price) amountInput.value = price;
+
+    updateClientSection(mtype);
 
     partnerSec.style.display  = mtype === 'pareja'      ? '' : 'none';
     studentSec.style.display  = mtype === 'estudiantil' ? '' : 'none';
@@ -421,17 +472,21 @@ startInput.addEventListener('change', updateUI);
 
 // ── Validación al enviar ──────────────────────────────────────────
 document.getElementById('payment_form').addEventListener('submit', function(e) {
-    const clientHidden = document.getElementById('client_id_hidden');
-    if (!clientHidden.value) {
-        e.preventDefault();
-        alert('Debes seleccionar un cliente de la lista.');
-        document.getElementById('client_id_text').focus();
-        return;
+    const opt = membershipSel.options[membershipSel.selectedIndex];
+    const mtype = opt ? (opt.dataset.type || '') : '';
+
+    // Solo validar cliente si NO es plan diario
+    if (mtype !== 'diario') {
+        const clientHidden = document.getElementById('client_id_hidden');
+        if (!clientHidden.value) {
+            e.preventDefault();
+            alert('Debes seleccionar un cliente de la lista.');
+            document.getElementById('client_id_text').focus();
+            return;
+        }
     }
 
-    const opt = membershipSel.options[membershipSel.selectedIndex];
     if (!opt || !opt.value) return;
-    const mtype = opt.dataset.type || '';
 
     if (mtype === 'pareja') {
         const partHidden = document.getElementById('partner_client_id_hidden');

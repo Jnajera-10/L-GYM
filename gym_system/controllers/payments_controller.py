@@ -70,17 +70,32 @@ class PaymentsController:
         memberships = Membership.query.filter_by(is_active=True).order_by(Membership.name).all()
 
         today = datetime.now(BOGOTA).date()
+
+        # ── Contador de pagos diarios de hoy ──────────────────────────
+        from database.models.membership import Membership as Memb
+        daily_count_today = (
+            Payment.query
+            .join(Memb, Payment.membership_id == Memb.id)
+            .filter(
+                Payment.payment_date == today,
+                Payment.is_deleted   == False,
+                Memb.membership_type == 'diario',
+            )
+            .count()
+        )
+
         return render_template(
             'payments/payments.html',
-            payments    = pagination.items,
-            pagination  = pagination,
-            memberships = memberships,
-            today       = today,
-            q           = q,
-            plan_filter = plan_filter,
-            method      = method,
-            date_from   = date_from,
-            date_to     = date_to,
+            payments          = pagination.items,
+            pagination        = pagination,
+            memberships       = memberships,
+            today             = today,
+            q                 = q,
+            plan_filter       = plan_filter,
+            method            = method,
+            date_from         = date_from,
+            date_to           = date_to,
+            daily_count_today = daily_count_today,
         )
 
     @staticmethod
@@ -106,12 +121,25 @@ class PaymentsController:
             else:
                 flash('No se pudo registrar el pago.', 'danger')
 
+        today_date = datetime.now(BOGOTA).date()
+        daily_count_today = (
+            Payment.query
+            .join(Membership, Payment.membership_id == Membership.id)
+            .filter(
+                Payment.payment_date == today_date,
+                Payment.is_deleted   == False,
+                Membership.membership_type == 'diario',
+            )
+            .count()
+        )
+
         return render_template(
             'payments/create_payment.html',
-            clients       = clients,
-            memberships   = memberships,
-            current_shift = _get_shift(),
-            today         = datetime.now(BOGOTA).strftime('%Y-%m-%d'),
+            clients           = clients,
+            memberships       = memberships,
+            current_shift     = _get_shift(),
+            today             = datetime.now(BOGOTA).strftime('%Y-%m-%d'),
+            daily_count_today = daily_count_today,
         )
 
     @staticmethod
@@ -193,7 +221,22 @@ class PaymentsController:
     @staticmethod
     def receipt(payment_id):
         payment = Payment.query.get_or_404(payment_id)
-        return render_template('payments/receipt.html', payment=payment)
+
+        # Si es pago diario, calcular cuántos diarios se han registrado ese día
+        daily_count = None
+        if payment.membership and payment.membership.membership_type == 'diario':
+            daily_count = (
+                Payment.query
+                .join(Membership, Payment.membership_id == Membership.id)
+                .filter(
+                    Payment.payment_date == payment.payment_date,
+                    Payment.is_deleted   == False,
+                    Membership.membership_type == 'diario',
+                )
+                .count()
+            )
+
+        return render_template('payments/receipt.html', payment=payment, daily_count=daily_count)
 
     @staticmethod
     def delete(payment_id):

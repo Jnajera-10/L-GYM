@@ -20,6 +20,21 @@ class PaymentService:
         start_date = datetime.strptime(form_data['start_date'], '%Y-%m-%d').date()
         end_date   = start_date + timedelta(days=membership.duration_days - 1)
 
+        # --- Plan Diario: usar cliente especial DIARIO automáticamente ---
+        form_data = dict(form_data)   # mutable copy
+        if membership.membership_type == 'diario':
+            diario_client = Client.query.filter_by(document_number='DIARIO-0000').first()
+            if not diario_client:
+                # Crear al vuelo si no existe (failsafe)
+                diario_client = Client(
+                    full_name='DIARIO', document_type='otro',
+                    document_number='DIARIO-0000', is_active=True,
+                    notes='Cliente especial para pagos diarios.',
+                )
+                db.session.add(diario_client)
+                db.session.flush()
+            form_data['client_id'] = str(diario_client.id)
+
         # --- Validación: Plan Pareja ---
         partner_client_id = None
         partner_payment   = None
@@ -84,13 +99,21 @@ class PaymentService:
         # ── Asistencia automática al registrar pago ────────────────────
         # Se registra la asistencia del día para el cliente principal
         # y para el segundo cliente si es Plan Pareja.
+        # El cliente DIARIO no genera asistencia individual.
         now_bogota = datetime.now(BOGOTA)
         today      = now_bogota.date()
+
+        diario_id = None
+        _dc = Client.query.filter_by(document_number='DIARIO-0000').first()
+        if _dc:
+            diario_id = _dc.id
 
         for client_id_att in set(filter(None, [
             int(form_data['client_id']),
             partner_client_id,   # None si no es Plan Pareja
         ])):
+            if client_id_att == diario_id:
+                continue   # no registrar asistencia para el cliente DIARIO
             # Evitar duplicar si ya tiene asistencia hoy
             ya_asistio = Attendance.query.filter(
                 Attendance.client_id == client_id_att,

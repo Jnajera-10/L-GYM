@@ -31,6 +31,14 @@
                     {% endif %}
                 </table>
 
+                {% if daily_count %}
+                <div class="alert alert-info text-center py-2 mb-3">
+                    <i class="fas fa-calendar-day me-1"></i>
+                    Pagos <strong>Diarios</strong> registrados el {{ payment.payment_date.strftime('%d/%m/%Y') }}:
+                    <span class="badge bg-primary fs-6 ms-1">{{ daily_count }}</span>
+                </div>
+                {% endif %}
+
                 {% if payment.client.email %}
                 <div class="alert alert-success py-2 text-center mb-3">
                     <i class="fas fa-envelope-circle-check me-1"></i>

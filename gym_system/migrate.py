@@ -1,10 +1,11 @@
 from app import application
 from database.db import db
+from database.models.client import Client
 from sqlalchemy import text
 
 with application.app_context():
+    # ── Migraciones de columnas / tablas (idempotentes) ──────────────
     with db.engine.connect() as conn:
-        # Migraciones previas (idempotentes)
         conn.execute(text("ALTER TABLE payments ADD COLUMN IF NOT EXISTS shift VARCHAR(10) DEFAULT 'manana'"))
         conn.execute(text("ALTER TABLE payments ADD COLUMN IF NOT EXISTS cash_received FLOAT"))
         conn.execute(text("ALTER TABLE payments ADD COLUMN IF NOT EXISTS cash_change FLOAT"))
@@ -18,8 +19,6 @@ with application.app_context():
                 updated_at TIMESTAMP
             )
         """))
-
-        # Nueva tabla de egresos
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS expenses (
                 id          SERIAL PRIMARY KEY,
@@ -31,6 +30,23 @@ with application.app_context():
                 created_at  TIMESTAMP
             )
         """))
-
         conn.commit()
+    print("OK — migraciones de columnas aplicadas")
+
+    # ── Crear cliente especial DIARIO si no existe ───────────────────
+    diario = Client.query.filter_by(document_number='DIARIO-0000').first()
+    if not diario:
+        diario = Client(
+            full_name       = 'DIARIO',
+            document_type   = 'otro',
+            document_number = 'DIARIO-0000',
+            is_active       = True,
+            notes           = 'Cliente especial para pagos diarios sin registro individual.',
+        )
+        db.session.add(diario)
+        db.session.commit()
+        print("OK — Cliente DIARIO creado con ID:", diario.id)
+    else:
+        print("OK — Cliente DIARIO ya existía con ID:", diario.id)
+
     print("OK — migraciones aplicadas correctamente")
