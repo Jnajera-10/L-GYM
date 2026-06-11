@@ -54,10 +54,36 @@ class PaymentService:
             if form_data.get('is_student') != 'on':
                 return None, None, 'El Plan Estudiantil es exclusivo para bachilleres. Confirma el requisito.'
 
-        # --- Pago principal ---
+        # --- Pago mixto: leer métodos y montos ---
         cash_received = None
         cash_change   = None
-        if form_data.get('payment_method') == 'efectivo':
+
+        # Leer hasta 4 métodos del formulario: method_1, amount_1, method_2, amount_2 ...
+        split_parts = []
+        for i in range(1, 5):
+            m = form_data.get(f'method_{i}', '').strip()
+            a = form_data.get(f'amount_{i}', '').strip()
+            if m and a:
+                try:
+                    split_parts.append((m, float(a)))
+                except ValueError:
+                    pass
+
+        # Si no vino en formato split, usar campo legacy
+        if not split_parts:
+            m = form_data.get('payment_method', 'efectivo')
+            try:
+                a = float(form_data.get('amount', 0))
+            except (ValueError, TypeError):
+                a = 0
+            split_parts = [(m, a)]
+
+        from utils.helpers import serialize_payment_split, primary_payment_method
+        payment_method_str = serialize_payment_split(split_parts)
+
+        # Vuelto solo si hay efectivo
+        efectivo_amount = sum(a for m, a in split_parts if m == 'efectivo')
+        if efectivo_amount > 0:
             try:
                 cash_received = float(form_data.get('cash_received') or 0) or None
                 if cash_received:
@@ -71,7 +97,7 @@ class PaymentService:
             amount           = float(form_data['amount']),
             start_date       = start_date,
             end_date         = end_date,
-            payment_method   = form_data.get('payment_method', 'efectivo'),
+            payment_method   = payment_method_str,
             notes            = form_data.get('notes'),
             partner_client_id= partner_client_id,
             shift            = form_data.get('shift', _get_shift()),
@@ -88,7 +114,7 @@ class PaymentService:
                 amount           = 0,
                 start_date       = start_date,
                 end_date         = end_date,
-                payment_method   = form_data.get('payment_method', 'efectivo'),
+                payment_method   = payment_method_str,
                 notes            = f'Plan Pareja — vinculado al pago del cliente #{form_data["client_id"]}',
                 partner_client_id= int(form_data['client_id']),
             )

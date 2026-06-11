@@ -110,28 +110,35 @@ class DashboardController:
         june_payments = PaymentService.payments_since_raw(JUNE_START)
         june_breakdown = {}
         for p in june_payments:
-            method = p.payment_method or 'otro'
-            june_breakdown[method] = june_breakdown.get(method, 0) + p.amount
+            from utils.helpers import parse_payment_split
+            for method, monto in parse_payment_split(p.payment_method):
+                val = monto if monto is not None else p.amount
+                june_breakdown[method] = june_breakdown.get(method, 0) + val
 
-        # ── Alertas: próximas a vencer (≤3 días) ─────────────────────
+        # ── Alertas: próximas a vencer (≤3 días) — excluye plan Diario ──
+        from database.models.membership import Membership as MembershipModel
         warn_limit = today + timedelta(days=3)
         expiring_payments = (
             Payment.query
+            .join(MembershipModel, Payment.membership_id == MembershipModel.id)
             .filter(
                 Payment.end_date >= today,
                 Payment.end_date <= warn_limit,
                 Payment.is_deleted == False,
+                MembershipModel.membership_type != 'diario',
             )
             .order_by(Payment.end_date.asc())
             .all()
         )
 
-        # ── Alertas: ya vencidas ──────────────────────────────────────
+        # ── Alertas: ya vencidas — excluye plan Diario ────────────────
         expired_payments = (
             Payment.query
+            .join(MembershipModel, Payment.membership_id == MembershipModel.id)
             .filter(
                 Payment.end_date < today,
                 Payment.is_deleted == False,
+                MembershipModel.membership_type != 'diario',
             )
             .order_by(Payment.end_date.desc())
             .limit(10)
@@ -146,14 +153,19 @@ class DashboardController:
 
         cash_breakdown = {}
         for p in today_payments:
-            method = p.payment_method or 'otro'
-            cash_breakdown[method] = cash_breakdown.get(method, 0) + p.amount
+            from utils.helpers import parse_payment_split
+            for method, monto in parse_payment_split(p.payment_method):
+                # Si viene con monto del split, usarlo; si no, usar p.amount completo
+                val = monto if monto is not None else p.amount
+                cash_breakdown[method] = cash_breakdown.get(method, 0) + val
 
         month_payments = PaymentService.month_payments_raw()
         month_breakdown = {}
         for p in month_payments:
-            method = p.payment_method or 'otro'
-            month_breakdown[method] = month_breakdown.get(method, 0) + p.amount
+            from utils.helpers import parse_payment_split
+            for method, monto in parse_payment_split(p.payment_method):
+                val = monto if monto is not None else p.amount
+                month_breakdown[method] = month_breakdown.get(method, 0) + val
 
         # ── Desglose por turno (hoy) ──────────────────────────────────
         morning_income   = sum(p.amount for p in today_payments if p.shift == SHIFT_MORNING)

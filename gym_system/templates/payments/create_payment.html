@@ -174,20 +174,74 @@
                            class="form-control" required value="{{ today }}">
                 </div>
 
-                {# ── Método de pago ── #}
-                <div class="col-md-4">
-                    <label class="form-label">Método de Pago</label>
-                    <select name="payment_method" id="payment_method" class="form-select">
-                        <option value="efectivo">Efectivo</option>
-                        <option value="transferencia">Transferencia</option>
-                        <option value="tarjeta">Tarjeta</option>
-                        <option value="datafono">Datáfono</option>
-                        <option value="nequi">Nequi</option>
-                        <option value="daviplata">Daviplata</option>
-                    </select>
+                {# ── Método(s) de Pago ── #}
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Método(s) de Pago *</label>
+                    <div id="payment_methods_container">
+                        {# Fila 1 — siempre visible #}
+                        <div class="row g-2 align-items-center mb-2 payment-method-row" id="method_row_1">
+                            <div class="col-md-4">
+                                <select name="method_1" class="form-select method-select" required>
+                                    <option value="efectivo">💵 Efectivo</option>
+                                    <option value="transferencia">🏦 Transferencia</option>
+                                    <option value="nequi">📱 Nequi</option>
+                                    <option value="daviplata">📱 Daviplata</option>
+                                    <option value="tarjeta">💳 Tarjeta</option>
+                                    <option value="datafono">🖥 Datáfono</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="amount_1" id="amount_1"
+                                           class="form-control method-amount"
+                                           placeholder="Monto" min="0" step="1" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-outline-success btn-sm" id="add_method_btn">
+                                    <i class="fas fa-plus me-1"></i>Otro método
+                                </button>
+                            </div>
+                        </div>
+                        {# Filas 2-4 — ocultas por defecto #}
+                        {% for i in range(2, 5) %}
+                        <div class="row g-2 align-items-center mb-2 payment-method-row" id="method_row_{{ i }}" style="display:none">
+                            <div class="col-md-4">
+                                <select name="method_{{ i }}" class="form-select method-select">
+                                    <option value="efectivo">💵 Efectivo</option>
+                                    <option value="transferencia">🏦 Transferencia</option>
+                                    <option value="nequi">📱 Nequi</option>
+                                    <option value="daviplata">📱 Daviplata</option>
+                                    <option value="tarjeta">💳 Tarjeta</option>
+                                    <option value="datafono">🖥 Datáfono</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="amount_{{ i }}" id="amount_{{ i }}"
+                                           class="form-control method-amount"
+                                           placeholder="Monto" min="0" step="1">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-method-btn"
+                                        data-row="{{ i }}">
+                                    <i class="fas fa-times me-1"></i>Quitar
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {# Resumen y diferencia #}
+                    <div class="d-flex align-items-center gap-3 mt-2" id="split_summary" style="display:none!important">
+                        <span class="small text-muted">Total métodos: <strong id="split_total">$0</strong></span>
+                        <span class="small" id="split_diff_label"></span>
+                    </div>
                 </div>
 
-                {# ── Efectivo: billete recibido y vuelto ── #}
+                {# ── Efectivo: billete recibido y vuelto (solo si hay efectivo) ── #}
                 <div class="col-12" id="cash_section">
                     <div class="row g-2 align-items-end">
                         <div class="col-md-4">
@@ -338,11 +392,6 @@ const amountInput   = document.getElementById('amount');
 const startInput    = document.getElementById('start_date');
 const endPreview    = document.getElementById('end_date_preview');
 const endLabel      = document.getElementById('end_date_label');
-const payMethodSel  = document.getElementById('payment_method');
-const cashSection   = document.getElementById('cash_section');
-const cashReceived  = document.getElementById('cash_received');
-const vueltoPreview = document.getElementById('vuelto_preview');
-const vueltoLabel   = document.getElementById('vuelto_label');
 
 // ── Secciones cliente diario vs normal ────────────────────────────
 const clientSection      = document.getElementById('client_section');
@@ -370,22 +419,127 @@ function updateClientSection(mtype) {
     }
 }
 
-// ── Mostrar/ocultar sección efectivo ─────────────────────────────
+// ── Pago mixto: agregar/quitar métodos ───────────────────────────
+let methodCount = 1;
+const MAX_METHODS = 4;
+
+document.getElementById('add_method_btn').addEventListener('click', function() {
+    if (methodCount >= MAX_METHODS) return;
+    methodCount++;
+    document.getElementById('method_row_' + methodCount).style.display = '';
+    updateSplitSummary();
+});
+
+document.querySelectorAll('.remove-method-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const row = parseInt(this.dataset.row);
+        document.getElementById('method_row_' + row).style.display = 'none';
+        document.getElementById('amount_' + row).value = '';
+        // Reordenar: compactar filas visibles
+        methodCount = 1;
+        for (let i = 2; i <= MAX_METHODS; i++) {
+            if (document.getElementById('method_row_' + i).style.display !== 'none') {
+                methodCount = i;
+            }
+        }
+        updateSplitSummary();
+    });
+});
+
+// ── Mostrar/ocultar sección efectivo si hay efectivo en algún método ──
+function hasEfectivo() {
+    for (let i = 1; i <= MAX_METHODS; i++) {
+        const row = document.getElementById('method_row_' + i);
+        if (row && row.style.display !== 'none') {
+            const sel = row.querySelector('.method-select');
+            if (sel && sel.value === 'efectivo') return true;
+        }
+    }
+    return false;
+}
+
 function updateCashSection() {
-    const isEfectivo = payMethodSel.value === 'efectivo';
-    cashSection.style.display = isEfectivo ? '' : 'none';
-    if (!isEfectivo) {
-        cashReceived.value = '';
-        vueltoPreview.style.display = 'none';
+    const cashSection = document.getElementById('cash_section');
+    if (hasEfectivo()) {
+        cashSection.style.display = '';
+    } else {
+        cashSection.style.display = 'none';
+        document.getElementById('cash_received').value = '';
+        document.getElementById('vuelto_preview').style.display = 'none';
     }
 }
 
+// ── Resumen split y validación ────────────────────────────────────
+function updateSplitSummary() {
+    const totalMonto = parseFloat(amountInput.value) || 0;
+    let splitTotal = 0;
+    for (let i = 1; i <= MAX_METHODS; i++) {
+        const row = document.getElementById('method_row_' + i);
+        if (row && row.style.display !== 'none') {
+            const val = parseFloat(document.getElementById('amount_' + i).value) || 0;
+            splitTotal += val;
+        }
+    }
+
+    const summaryEl = document.getElementById('split_summary');
+    const splitTotalEl = document.getElementById('split_total');
+    const splitDiffEl = document.getElementById('split_diff_label');
+
+    // Mostrar solo si hay más de un método visible
+    let visibleMethods = 0;
+    for (let i = 1; i <= MAX_METHODS; i++) {
+        const row = document.getElementById('method_row_' + i);
+        if (row && row.style.display !== 'none') visibleMethods++;
+    }
+
+    if (visibleMethods > 1 && totalMonto > 0) {
+        summaryEl.style.display = '';
+        summaryEl.style.setProperty('display', 'flex', 'important');
+        splitTotalEl.textContent = '$' + splitTotal.toLocaleString('es-CO');
+        const diff = splitTotal - totalMonto;
+        if (Math.abs(diff) < 1) {
+            splitDiffEl.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>Exacto</span>';
+        } else if (diff > 0) {
+            splitDiffEl.innerHTML = '<span class="text-danger">Excede $' + diff.toLocaleString('es-CO') + '</span>';
+        } else {
+            splitDiffEl.innerHTML = '<span class="text-warning">Faltan $' + Math.abs(diff).toLocaleString('es-CO') + '</span>';
+        }
+    } else {
+        summaryEl.style.display = 'none';
+    }
+    updateCashSection();
+    updateVuelto();
+}
+
+// Escuchar cambios en selects y montos de métodos
+document.querySelectorAll('.method-select, .method-amount').forEach(function(el) {
+    el.addEventListener('change', updateSplitSummary);
+    el.addEventListener('input', updateSplitSummary);
+});
+
 // ── Calcular vuelto en tiempo real ────────────────────────────────
+const cashReceived  = document.getElementById('cash_received');
+const vueltoPreview = document.getElementById('vuelto_preview');
+const vueltoLabel   = document.getElementById('vuelto_label');
+
 function updateVuelto() {
-    const monto    = parseFloat(amountInput.value)  || 0;
+    // Monto de efectivo = lo que está en amount_1 si method_1 es efectivo, etc.
+    let efectivoMonto = 0;
+    for (let i = 1; i <= MAX_METHODS; i++) {
+        const row = document.getElementById('method_row_' + i);
+        if (row && row.style.display !== 'none') {
+            const sel = row.querySelector('.method-select');
+            if (sel && sel.value === 'efectivo') {
+                efectivoMonto += parseFloat(document.getElementById('amount_' + i).value) || 0;
+            }
+        }
+    }
+    // Si no hay split, usar amount total
+    if (efectivoMonto === 0) efectivoMonto = parseFloat(amountInput.value) || 0;
+
     const recibido = parseFloat(cashReceived.value) || 0;
-    if (recibido > 0 && monto > 0) {
-        const vuelto = recibido - monto;
+    if (recibido > 0 && efectivoMonto > 0) {
+        const vuelto = recibido - efectivoMonto;
         if (vuelto >= 0) {
             vueltoLabel.textContent = '$' + vuelto.toLocaleString('es-CO');
             vueltoPreview.style.display = '';
@@ -400,9 +554,8 @@ function updateVuelto() {
     }
 }
 
-payMethodSel.addEventListener('change', updateCashSection);
-cashReceived.addEventListener('input',  updateVuelto);
-amountInput.addEventListener('input',   updateVuelto);
+cashReceived.addEventListener('input', updateVuelto);
+amountInput.addEventListener('input', function() { updateSplitSummary(); updateVuelto(); });
 updateCashSection();
 
 let familiarCount = 3;
@@ -451,7 +604,13 @@ function updateUI() {
     const price    = opt.dataset.price;
     const duration = parseInt(opt.dataset.duration || '0');
 
-    if (price) amountInput.value = price;
+    if (price) {
+        amountInput.value = price;
+        // Si solo hay un método visible, auto-llenar su monto
+        const amount1 = document.getElementById('amount_1');
+        if (amount1) amount1.value = price;
+        updateSplitSummary();
+    }
 
     updateClientSection(mtype);
 
@@ -484,6 +643,23 @@ document.getElementById('payment_form').addEventListener('submit', function(e) {
             document.getElementById('client_id_text').focus();
             return;
         }
+    }
+
+    // Validar que los montos de métodos sumen al total (si hay más de uno)
+    const totalMonto = parseFloat(amountInput.value) || 0;
+    let splitTotal = 0;
+    let visibleMethods = 0;
+    for (let i = 1; i <= 4; i++) {
+        const row = document.getElementById('method_row_' + i);
+        if (row && row.style.display !== 'none') {
+            visibleMethods++;
+            splitTotal += parseFloat(document.getElementById('amount_' + i).value) || 0;
+        }
+    }
+    if (visibleMethods > 1 && Math.abs(splitTotal - totalMonto) >= 1) {
+        e.preventDefault();
+        alert('Los montos de los métodos de pago ($' + splitTotal.toLocaleString('es-CO') + ') no suman el total ($' + totalMonto.toLocaleString('es-CO') + '). Ajústalos antes de continuar.');
+        return;
     }
 
     if (!opt || !opt.value) return;

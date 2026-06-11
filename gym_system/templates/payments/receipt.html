@@ -26,7 +26,22 @@
                     <tr><th>Fecha de Pago</th><td>{{ payment.payment_date.strftime('%d/%m/%Y') }}</td></tr>
                     <tr><th>Válido desde</th><td>{{ payment.start_date.strftime('%d/%m/%Y') }}</td></tr>
                     <tr><th>Vence</th><td>{{ payment.end_date.strftime('%d/%m/%Y') }}</td></tr>
-                    <tr><th>Método</th><td>{{ payment.payment_method | capitalize }}</td></tr>
+                    <tr><th>Método</th><td>
+                        {% set split = payment.payment_method.split('|') if payment.payment_method else ['efectivo'] %}
+                        {% if split | length == 1 %}
+                            {{ payment.payment_method.split(':')[0] | capitalize }}
+                            {% if ':' in (payment.payment_method or '') %}
+                                — ${{ '{:,.0f}'.format(payment.payment_method.split(':')[1] | float) }}
+                            {% endif %}
+                        {% else %}
+                            <ul class="mb-0 ps-3">
+                            {% for part in split %}
+                                {% set pieces = part.split(':') %}
+                                <li>{{ pieces[0] | capitalize }}{% if pieces | length > 1 %} — ${{ '{:,.0f}'.format(pieces[1] | float) }}{% endif %}</li>
+                            {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </td></tr>
                     <tr><th>Turno</th><td>
                         {% if payment.shift == 'mañana' %}🌅 Mañana (6am – 1pm)
                         {% elif payment.shift == 'tarde' %}🌆 Tarde (1pm – cierre)

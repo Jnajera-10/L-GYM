@@ -13,3 +13,43 @@ def membership_status(end_date):
     if days <= 3:
         return 'por_vencer'
     return 'activo'
+
+
+# ── Pago mixto: parsear/serializar método de pago ─────────────────
+# Formato guardado en payment_method: "efectivo:3000|nequi:2000"
+# Si es un método simple (sin "|"), se trata como antes.
+
+def parse_payment_split(payment_method_str):
+    """
+    Retorna lista de (metodo, monto) desde el string guardado.
+    Ej: "efectivo:3000|nequi:2000" → [('efectivo', 3000.0), ('nequi', 2000.0)]
+    Ej: "efectivo" → [('efectivo', None)]
+    """
+    if not payment_method_str:
+        return [('efectivo', None)]
+    parts = []
+    for chunk in payment_method_str.split('|'):
+        chunk = chunk.strip()
+        if ':' in chunk:
+            method, amount_str = chunk.split(':', 1)
+            try:
+                parts.append((method.strip(), float(amount_str.strip())))
+            except ValueError:
+                parts.append((method.strip(), None))
+        else:
+            parts.append((chunk, None))
+    return parts
+
+
+def serialize_payment_split(methods_amounts):
+    """
+    Serializa lista de (metodo, monto) al formato de almacenamiento.
+    Ej: [('efectivo', 3000), ('nequi', 2000)] → "efectivo:3000|nequi:2000"
+    """
+    return '|'.join(f'{m}:{int(a)}' for m, a in methods_amounts if m and a)
+
+
+def primary_payment_method(payment_method_str):
+    """Retorna el primer método (para compatibilidad con filtros existentes)."""
+    parts = parse_payment_split(payment_method_str)
+    return parts[0][0] if parts else 'efectivo'
