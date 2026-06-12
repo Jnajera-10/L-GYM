@@ -25,11 +25,12 @@ def create_app():
     from routes.health_routes import health_bp
     from routes.email_test_routes import email_test_bp
     from routes.profile_routes import profile_bp   # ← nuevo
+    from routes.expense_routes import expense_bp
 
     for bp in [auth_bp, user_bp, client_bp, membership_bp, payment_bp,
                attendance_bp, inventory_bp, sales_bp, dashboard_bp,
                reports_bp, notification_bp, settings_bp, backup_bp, audit_bp,
-               health_bp, email_test_bp, profile_bp]:   # ← registrado
+               health_bp, email_test_bp, profile_bp, expense_bp]:   # ← registrado
         app.register_blueprint(bp)
 
     # ── Protección global: redirige al login si no hay sesión ───────────
