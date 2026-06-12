@@ -1,7 +1,207 @@
 {% extends 'layouts/base.html' %}
 {% block title %}Dashboard - Body-Fit{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Pantalla de bienvenida ─────────────────────────────────────────── */
+.welcome-banner {
+    background: linear-gradient(135deg, #1a1a1a 0%, #222 60%, #1a1a1a 100%);
+    border: 1px solid #333;
+    border-radius: 18px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 1.75rem;
+    position: relative;
+    overflow: hidden;
+}
+.welcome-banner::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(245,197,24,0.07) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.welcome-banner::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: 30%;
+    width: 160px; height: 160px;
+    background: radial-gradient(circle, rgba(245,197,24,0.04) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.welcome-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(245,197,24,0.12);
+    border: 1px solid rgba(245,197,24,0.3);
+    color: #f5c518;
+    border-radius: 50px;
+    padding: 0.25rem 0.85rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+}
+.welcome-greeting {
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.25rem;
+    line-height: 1.2;
+}
+.welcome-greeting span {
+    color: #f5c518;
+}
+.welcome-sub {
+    color: #888;
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+.welcome-clock {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.05em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+.welcome-date-text {
+    color: #888;
+    font-size: 0.82rem;
+    margin-top: 0.25rem;
+    text-align: right;
+}
+.welcome-divider {
+    border-color: #333;
+    margin: 1.25rem 0 1rem;
+}
+
+/* ── Accesos rápidos ────────────────────────────────────────────────── */
+.quick-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    color: #ccc;
+    border-radius: 10px;
+    padding: 0.55rem 1rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+}
+.quick-btn:hover {
+    border-color: #f5c518;
+    color: #f5c518;
+    background: rgba(245,197,24,0.06);
+    transform: translateY(-1px);
+}
+.quick-btn i {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+.quick-btn:hover i { opacity: 1; }
+
+/* ── Check animado al cargar ────────────────────────────────────────── */
+@keyframes popIn {
+    0%   { transform: scale(0.5); opacity: 0; }
+    70%  { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
+}
+.welcome-check-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px; height: 52px;
+    background: rgba(34,197,94,0.12);
+    border: 2px solid rgba(34,197,94,0.3);
+    border-radius: 50%;
+    animation: popIn 0.4s cubic-bezier(.4,0,.2,1) both;
+    flex-shrink: 0;
+}
+.welcome-check-wrap i { color: #22c55e; font-size: 1.3rem; }
+</style>
+{% endblock %}
+
 {% block content %}
+
+{# ══════════════════════════════════════════════════════════════════════
+   BANNER DE BIENVENIDA
+   ══════════════════════════════════════════════════════════════════════ #}
+<div class="welcome-banner">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+
+        {# Izquierda: ícono + saludo #}
+        <div class="d-flex align-items-center gap-3">
+            <div class="welcome-check-wrap">
+                <i class="fas fa-check"></i>
+            </div>
+            <div>
+                {% if session.get('user_role') == 'admin' %}
+                <div class="welcome-role-badge">
+                    <i class="fas fa-crown"></i> Administrador
+                </div>
+                {% else %}
+                <div class="welcome-role-badge">
+                    <i class="fas fa-headset"></i> Recepcionista
+                </div>
+                {% endif %}
+                <div class="welcome-greeting">
+                    ¡Bienvenido, <span>{{ session.get('user_username', 'Usuario') | capitalize }}</span>! 👋
+                </div>
+                <p class="welcome-sub">
+                    {% if session.get('user_role') == 'admin' %}
+                    Tienes acceso completo al sistema. Revisa el resumen del día.
+                    {% else %}
+                    Listo para atender. Aquí tienes el resumen de hoy.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        {# Derecha: reloj #}
+        <div class="text-end d-none d-sm-block">
+            <div class="welcome-clock" id="wb-clock">--:--:--</div>
+            <div class="welcome-date-text" id="wb-date"></div>
+        </div>
+    </div>
+
+    <hr class="welcome-divider">
+
+    {# Accesos rápidos #}
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{{ url_for('payments.create') }}" class="quick-btn">
+            <i class="fas fa-money-bill-wave"></i> Registrar Pago
+        </a>
+        <a href="{{ url_for('clients.create') }}" class="quick-btn">
+            <i class="fas fa-user-plus"></i> Nuevo Cliente
+        </a>
+        <a href="{{ url_for('attendance.index') }}" class="quick-btn">
+            <i class="fas fa-clipboard-check"></i> Asistencias
+        </a>
+        <a href="{{ url_for('clients.index') }}" class="quick-btn">
+            <i class="fas fa-users"></i> Ver Clientes
+        </a>
+        {% if session.get('user_role') == 'admin' %}
+        <a href="{{ url_for('reports.index') }}" class="quick-btn">
+            <i class="fas fa-chart-bar"></i> Reportes
+        </a>
+        <a href="{{ url_for('inventory.index') }}" class="quick-btn">
+            <i class="fas fa-boxes"></i> Inventario
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{# Resto del dashboard original: título y tarjetas #}
 <h4 class="mb-4"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h4>
+
 
 {# ── Tarjetas de resumen ───────────────────────────────────────────── #}
 <div class="row g-3 mb-4">
@@ -595,5 +795,32 @@
     });
 })();
 </script>
+
+{% block extra_js %}
+<script>
+// ── Reloj en tiempo real ──────────────────────────────────────────────
+(function() {
+    const DIAS   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const MESES  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
+                    'Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const clockEl = document.getElementById('wb-clock');
+    const dateEl  = document.getElementById('wb-date');
+
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function tick() {
+        // Colombia (UTC-5, sin horario de verano)
+        const now = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Bogota'}));
+        const h = pad(now.getHours());
+        const m = pad(now.getMinutes());
+        const s = pad(now.getSeconds());
+        if (clockEl) clockEl.textContent = `${h}:${m}:${s}`;
+        if (dateEl)  dateEl.textContent  = `${DIAS[now.getDay()]}, ${now.getDate()} de ${MESES[now.getMonth()]} ${now.getFullYear()}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+})();
+</script>
+{% endblock %}
 
 {% endblock %}
