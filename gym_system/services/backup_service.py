@@ -2,17 +2,19 @@
 BackupService — exporta los datos como JSON usando SQLAlchemy,
 sin depender de pg_dump (que no está disponible en Render free).
 
-Genera un archivo .json con todas las tablas principales y lo guarda
-en la carpeta backups/ del proyecto.
+IMPORTANTE: el disco de Render (plan free) NO es persistente — se
+reinicia en cada deploy, reinicio o "sleep" del servicio. Por eso este
+servicio ya NO guarda el respaldo en disco; genera el JSON en memoria
+y lo entrega directamente para descarga (BytesIO), para que el admin
+se lo guarde en su computador.
 """
-import os
 import json
+import io
 import logging
 from datetime import datetime, date
 import pytz
 
 BOGOTA = pytz.timezone('America/Bogota')
-BACKUP_DIR = os.path.join(os.path.dirname(__file__), '..', 'backups')
 logger = logging.getLogger(__name__)
 
 
@@ -34,17 +36,11 @@ def _model_to_dict(instance):
 class BackupService:
 
     @staticmethod
-    def _backup_dir():
-        path = os.path.abspath(BACKUP_DIR)
-        os.makedirs(path, exist_ok=True)
-        return path
-
-    @staticmethod
-    def create_backup():
+    def generate_backup_json():
         """
-        Genera un backup JSON con todas las tablas principales.
-        Compatible con Render free (no requiere pg_dump).
-        Devuelve la ruta del archivo generado.
+        Genera un backup JSON con todas las tablas principales,
+        completamente en memoria (no escribe nada en disco).
+        Devuelve (BytesIO, nombre_de_archivo).
         """
         from database.models.client import Client
         from database.models.payment import Payment
@@ -81,30 +77,24 @@ class BackupService:
         }
 
         timestamp = datetime.now(BOGOTA).strftime('%Y%m%d_%H%M%S')
-        backup_dir = BackupService._backup_dir()
-        dest = os.path.join(backup_dir, f'backup_{timestamp}.json')
+        filename = f'backup_{timestamp}.json'
 
-        with open(dest, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        buf = io.BytesIO()
+        buf.write(json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'))
+        buf.seek(0)
 
-        logger.info(f'[backup] Backup creado: {dest}')
-        return dest
-
-    @staticmethod
-    def list_backups():
-        backup_dir = BackupService._backup_dir()
-        files = [f for f in os.listdir(backup_dir) if f.endswith('.json')]
-        return sorted(files, reverse=True)
+        logger.info(f'[backup] Backup generado para descarga: {filename}')
+        return buf, filename
 
     @staticmethod
     def restore_backup(filename):
         """
         La restauración automática desde JSON requiere lógica de
         inserción tabla por tabla y está fuera del alcance de este
-        módulo. Para restaurar, descarga el JSON y usa los datos
-        manualmente o contacta al administrador del sistema.
+        módulo. Para restaurar, usa el archivo JSON descargado y
+        contacta al administrador del sistema.
         """
         raise NotImplementedError(
             'La restauración automática no está disponible. '
-            'Descarga el archivo JSON desde el servidor y restaura manualmente.'
+            'Usa el archivo JSON descargado para restaurar manualmente.'
         )

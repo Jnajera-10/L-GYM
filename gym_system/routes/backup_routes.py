@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash
+from flask import Blueprint, render_template, redirect, url_for, flash, send_file
 from services.backup_service import BackupService
 from utils.security import login_required, role_required
 
@@ -8,19 +8,26 @@ backup_bp = Blueprint('backup', __name__, url_prefix='/backup')
 @login_required
 @role_required('admin')
 def index():
-    try:
-        backups = BackupService.list_backups()
-    except Exception:
-        backups = []
-    return render_template('backups/backups.html', backups=backups)
+    return render_template('backups/backups.html')
 
-@backup_bp.route('/create', methods=['POST'])
+@backup_bp.route('/download')
 @login_required
 @role_required('admin')
-def create():
+def download():
+    """Genera el respaldo JSON en memoria y lo entrega para descarga directa.
+
+    No se guarda nada en disco: en Render (plan free) el disco no es
+    persistente, así que un archivo guardado ahí se perdería en el
+    próximo reinicio/deploy sin que el admin pueda recuperarlo.
+    """
     try:
-        BackupService.create_backup()
-        flash('Respaldo creado.', 'success')
+        buf, filename = BackupService.generate_backup_json()
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/json',
+        )
     except Exception as e:
-        flash(f'Error al crear respaldo: {e}', 'danger')
-    return redirect(url_for('backup.index'))
+        flash(f'Error al generar el respaldo: {e}', 'danger')
+        return redirect(url_for('backup.index'))
