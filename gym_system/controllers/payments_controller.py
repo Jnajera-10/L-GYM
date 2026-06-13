@@ -50,7 +50,12 @@ class PaymentsController:
                 pass
 
         if method:
-            query = query.filter(Payment.payment_method == method)
+            # payment_method puede ser "efectivo", "efectivo:5000", o "efectivo:3000|nequi:2000"
+            # Buscar si el método aparece en cualquier posición del string
+            query = query.filter(Payment.payment_method.ilike(f'%{method}%'))
+
+        if shift:
+            query = query.filter(Payment.shift == shift)
 
         if date_from:
             try:
