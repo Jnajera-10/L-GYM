@@ -29,6 +29,13 @@ class PaymentsController:
         date_to     = request.args.get('date_to', '').strip()
         shift       = request.args.get('shift', '').strip()
 
+        hoy_str = datetime.now(BOGOTA).strftime('%Y-%m-%d')
+
+        # Si no hay ningún filtro activo, mostrar solo los de hoy por defecto
+        no_filters = not any([q, plan_filter, method, date_from, date_to, shift])
+        if no_filters:
+            date_from = hoy_str
+
         query = Payment.query.filter_by(is_deleted=False)
 
         if q:
@@ -55,7 +62,14 @@ class PaymentsController:
             query = query.filter(Payment.payment_method.ilike(f'%{method}%'))
 
         if shift:
-            query = query.filter(Payment.shift == shift)
+            query = query.filter(
+                Payment.shift.isnot(None),
+                Payment.shift == shift
+            )
+            # Si filtra por turno pero no puso fecha, asumir HOY para no mostrar otros días
+            if not date_from and not date_to:
+                hoy = datetime.now(BOGOTA).date()
+                query = query.filter(Payment.payment_date == hoy)
 
         if date_from:
             try:
@@ -100,7 +114,7 @@ class PaymentsController:
             plan_filter       = plan_filter,
             shift             = shift,
             method            = method,
-            date_from         = date_from,
+            date_from         = date_from or hoy_str,
             date_to           = date_to,
             daily_count_today = daily_count_today,
         )
