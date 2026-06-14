@@ -14,13 +14,8 @@ class DeleteRequestController:
 
     @staticmethod
     def request_delete(payment_id):
-        """Recepcionista o admin solicita eliminar un pago — requiere justificación."""
+        """Recepcionista o admin solicita eliminar un pago."""
         payment = Payment.query.get_or_404(payment_id)
-        justification = request.form.get('justification', '').strip()
-
-        if not justification:
-            flash('Debes escribir una justificación para solicitar la eliminación.', 'danger')
-            return redirect(request.referrer or url_for('payments.index'))
 
         # Si ya hay una solicitud pendiente para este pago, no crear otra
         existing = DeleteRequest.query.filter_by(
@@ -39,13 +34,13 @@ class DeleteRequestController:
             AuditService.log(
                 'DELETE_DIRECTO', 'payments', payment.id,
                 f'${payment.amount:,.0f} — {payment.client.full_name if payment.client else "?"}',
-                f'Eliminado por admin. Justificación: {justification}'
+                'Eliminado por admin.'
             )
             if mirror:
                 AuditService.log(
                     'DELETE_DIRECTO', 'payments', mirror.id,
                     f'${mirror.amount:,.0f}',
-                    f'Eliminado (espejo Plan Pareja del pago #{payment.id}). Justificación: {justification}'
+                    f'Eliminado (espejo Plan Pareja del pago #{payment.id}).'
                 )
             flash('✅ Pago eliminado correctamente.', 'success')
             return redirect(url_for('payments.index'))
@@ -54,7 +49,7 @@ class DeleteRequestController:
         dr = DeleteRequest(
             payment_id    = payment_id,
             requested_by  = session.get('user_id'),
-            justification = justification,
+            justification = '',
             status        = 'pendiente',
         )
         db.session.add(dr)
@@ -63,7 +58,7 @@ class DeleteRequestController:
         AuditService.log(
             'SOLICITUD_ELIMINACION', 'payments', payment.id,
             f'${payment.amount:,.0f} — {payment.client.full_name if payment.client else "?"}',
-            f'Solicitud de eliminación. Justificación: {justification}'
+            'Solicitud de eliminación enviada.'
         )
         flash('✅ Solicitud enviada. El administrador recibirá la notificación y decidirá.', 'info')
         return redirect(request.referrer or url_for('payments.index'))
