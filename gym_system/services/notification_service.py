@@ -59,6 +59,46 @@ def _send_brevo(to_email: str, subject: str, html_body: str) -> tuple[bool, str]
         return False, err
 
 
+def send_email_raw(to_email: str, subject: str, html_body: str,
+                   attachment: bytes = None, attach_name: str = None):
+    """
+    Envía un correo directo (sin crear notificación en BD) con soporte
+    de adjunto binario (ej. PDF de cierre de caja).
+    Usa la API de Brevo con el campo 'attachment' en base64.
+    Lanza excepción si falla.
+    """
+    import base64
+    api_key   = os.environ.get('BREVO_API_KEY', '').strip()
+    mail_from = os.environ.get('MAIL_FROM', '').strip()
+    mail_name = os.environ.get('MAIL_FROM_NAME', 'Body-Fit Gym').strip()
+
+    if not api_key or not mail_from:
+        raise ValueError('BREVO_API_KEY o MAIL_FROM no configurados.')
+
+    payload = {
+        'sender':      {'name': mail_name, 'email': mail_from},
+        'to':          [{'email': to_email}],
+        'subject':     subject,
+        'htmlContent': html_body,
+    }
+
+    if attachment and attach_name:
+        payload['attachment'] = [{
+            'name':    attach_name,
+            'content': base64.b64encode(attachment).decode('utf-8'),
+        }]
+
+    response = requests.post(
+        'https://api.brevo.com/v3/smtp/email',
+        json    = payload,
+        headers = {'api-key': api_key, 'Content-Type': 'application/json'},
+        timeout = 20,
+    )
+    if response.status_code not in (200, 201):
+        raise RuntimeError(f'Brevo error {response.status_code}: {response.text[:200]}')
+    print("[LOG-INFO]", f'[EMAIL OK con adjunto] {subject} → {to_email}')
+
+
 def _log_notification(client_id, channel, message, success, error=''):
     try:
         status = 'enviado' if success else 'error'
