@@ -7,28 +7,104 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
+        /* ── Fondo con decoración Mundial 2026 ── */
         body {
-            background: radial-gradient(ellipse at center, #2a2a2a 0%, #111 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #050d18;
+            position: relative;
+            overflow: hidden;
         }
+        /* Franjas decorativas de las tres banderas */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg,
+                #FF0000 0%, #FF0000 33%,
+                #BF0A30 33%, #BF0A30 66%,
+                #006847 66%, #006847 100%);
+            z-index: 100;
+        }
+        /* Círculos decorativos de fondo */
+        .bg-deco {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .bg-deco-1 {
+            width: 500px; height: 500px;
+            top: -150px; left: -150px;
+            background: radial-gradient(circle, rgba(0,104,71,0.12) 0%, transparent 70%);
+        }
+        .bg-deco-2 {
+            width: 600px; height: 600px;
+            bottom: -200px; right: -200px;
+            background: radial-gradient(circle, rgba(191,10,48,0.1) 0%, transparent 70%);
+        }
+        .bg-deco-3 {
+            width: 300px; height: 300px;
+            top: 40%; left: 60%;
+            background: radial-gradient(circle, rgba(245,197,24,0.06) 0%, transparent 70%);
+        }
+        /* Líneas de campo de fútbol decorativas */
+        .field-lines {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.03;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 80px, #ffffff 80px, #ffffff 81px),
+                repeating-linear-gradient(90deg, transparent, transparent 80px, #ffffff 80px, #ffffff 81px);
+        }
+
+        /* ── Card de login ── */
         .login-card {
             width: 100%;
             max-width: 420px;
-            background: #1c1c1c;
-            border: 1px solid #333;
+            background: rgba(10, 18, 32, 0.95);
+            border: 1px solid rgba(245,197,24,0.25);
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 20px 60px rgba(0,0,0,0.7);
             overflow: hidden;
+            position: relative;
+            z-index: 10;
         }
+
+        /* ── Header con acento tricolor ── */
         .login-header {
-            background: linear-gradient(135deg, #1a1a1a 0%, #222 100%);
+            background: #080f1c;
             padding: 2rem 2rem 1.2rem;
             text-align: center;
-            border-bottom: 2px solid #f5c518;
+            border-bottom: 1px solid rgba(245,197,24,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        /* Barras tricolor decorativas en el header */
+        .login-header::before {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg,
+                #FF0000 0%, #FF0000 33%,
+                #BF0A30 33%, #BF0A30 66%,
+                #006847 66%, #006847 100%);
+        }
+        /* Balón decorativo esquina */
+        .login-header::after {
+            content: '';
+            position: absolute;
+            top: -30px; right: -30px;
+            width: 100px; height: 100px;
+            border: 1px solid rgba(245,197,24,0.08);
+            border-radius: 50%;
         }
         .logo-img {
             width: 130px;
@@ -36,49 +112,130 @@
             object-fit: contain;
             filter: drop-shadow(0 4px 15px rgba(245, 197, 24, 0.4));
         }
-        .login-body { padding: 2rem; }
+        /* Badge Mundial debajo del logo */
+        .mundial-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(245,197,24,0.08);
+            border: 1px solid rgba(245,197,24,0.2);
+            border-radius: 20px;
+            padding: 3px 12px;
+            margin-top: 8px;
+            font-size: 0.7rem;
+            color: rgba(245,197,24,0.7);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        /* ── Body del formulario ── */
+        .login-body { padding: 2rem; background: rgba(10, 18, 32, 0.98); }
         .form-control {
-            background: #2a2a2a;
-            border: 1px solid #444;
+            background: #0d1a2e;
+            border: 1px solid rgba(255,255,255,0.1);
             color: #fff;
             border-radius: 10px;
             padding: 0.75rem 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
         .form-control:focus {
-            background: #2a2a2a;
-            border-color: #f5c518;
+            background: #0d1a2e;
+            border-color: rgba(245,197,24,0.5);
             color: #fff;
-            box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.15);
+            box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.1);
         }
-        .form-label { color: #bbb; font-size: 0.9rem; margin-bottom: 0.4rem; }
+        .form-control::placeholder { color: rgba(255,255,255,0.25); }
+        .form-label { color: #8a9bb0; font-size: 0.9rem; margin-bottom: 0.4rem; }
         .btn-login {
-            background: linear-gradient(135deg, #f5c518, #d4a017);
-            border: none;
-            color: #111;
+            background: linear-gradient(135deg, #1a6b3c, #0f5a30);
+            border: 1px solid rgba(45,198,100,0.3);
+            color: #fff;
             font-weight: 700;
             font-size: 1rem;
             border-radius: 10px;
             padding: 0.75rem;
             transition: all 0.2s;
             letter-spacing: 0.03em;
+            position: relative;
+            overflow: hidden;
         }
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.06);
+            transition: left 0.3s;
+        }
+        .btn-login:hover::before { left: 0; }
         .btn-login:hover {
-            background: linear-gradient(135deg, #ffd740, #f5c518);
+            background: linear-gradient(135deg, #1f7d46, #166b38);
+            border-color: rgba(45,198,100,0.5);
+            color: #fff;
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(245, 197, 24, 0.35);
+            box-shadow: 0 6px 20px rgba(0,104,71,0.4);
         }
-        .form-check-input:checked { background-color: #f5c518; border-color: #f5c518; }
-        .form-check-label { color: #aaa; font-size: 0.85rem; }
-        .forgot-link { color: #f5c518; font-size: 0.85rem; text-decoration: none; }
-        .forgot-link:hover { color: #ffd740; }
+        /* Decoración de 3 puntos tricolores junto al botón */
+        .tricolor-dots {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        .tricolor-dots span {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+        }
+        .form-check-input:checked { background-color: #1a6b3c; border-color: #1a6b3c; }
+        .form-check-label { color: #6a7d95; font-size: 0.85rem; }
+        .forgot-link { color: rgba(245,197,24,0.7); font-size: 0.85rem; text-decoration: none; transition: color 0.2s; }
+        .forgot-link:hover { color: #f5c518; }
         .alert { border-radius: 10px; font-size: 0.9rem; }
-        /* responsive muy pequeño */
+
+        /* Input group toggle password */
+        .btn-outline-secondary {
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            border-left: none !important;
+            background: #0d1a2e !important;
+            color: #6a7d95 !important;
+            border-radius: 0 10px 10px 0 !important;
+        }
+        .btn-outline-secondary:hover { color: #f5c518 !important; }
+
+        /* Footer del login */
+        .login-footer {
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding: 10px 2rem;
+            background: #060c16;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+        .flag-mini {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.68rem;
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.08em;
+        }
+        .flag-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+        }
+
         @media (max-width: 460px) {
             .login-card { border-radius: 0; min-height: 100vh; justify-content: center; display: flex; flex-direction: column; }
         }
     </style>
 </head>
 <body>
+    <div class="bg-deco bg-deco-1"></div>
+    <div class="bg-deco bg-deco-2"></div>
+    <div class="bg-deco bg-deco-3"></div>
+    <div class="field-lines"></div>
     <div class="login-card">
         <div class="login-header">
             <img src="{{ url_for('static', filename='img/logo.png') }}"
@@ -90,6 +247,10 @@
             <p class="text-muted small mt-2 mb-0" style="color:#888 !important; letter-spacing:0.1em; font-size:0.75rem;">
                 GESTIÓN INTEGRAL DE GIMNASIO
             </p>
+            <div class="mundial-badge">
+                <i class="fas fa-futbol" style="font-size:0.65rem;"></i>
+                Body-Fit · Sistema Pro
+            </div>
         </div>
 
         <div class="login-body">
@@ -125,11 +286,23 @@
                     </div>
                     <a href="{{ url_for('auth.forgot_password') }}" class="forgot-link">¿Olvidaste tu contraseña?</a>
                 </div>
+                <div class="tricolor-dots">
+                    <span style="background:#FF0000;"></span>
+                    <span style="background:#BF0A30;"></span>
+                    <span style="background:#006847;"></span>
+                </div>
                 <button type="submit" class="btn btn-login w-100" id="loginBtn">
                     <i class="fas fa-sign-in-alt me-2" id="loginIcon"></i>
                     <span id="loginText">Ingresar</span>
                 </button>
             </form>
+        </div>
+        <div class="login-footer">
+            <div class="flag-mini"><div class="flag-dot" style="background:#FF0000;"></div> Canadá</div>
+            <div class="flag-mini" style="color:rgba(255,255,255,0.15);">·</div>
+            <div class="flag-mini"><div class="flag-dot" style="background:#BF0A30;"></div> Estados Unidos</div>
+            <div class="flag-mini" style="color:rgba(255,255,255,0.15);">·</div>
+            <div class="flag-mini"><div class="flag-dot" style="background:#006847;"></div> México</div>
         </div>
     </div>
 
