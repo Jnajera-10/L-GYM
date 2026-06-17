@@ -19,14 +19,15 @@ def membership_status(end_date):
 # Formato guardado en payment_method: "efectivo:3000|nequi:2000"
 # Si es un método simple (sin "|"), se trata como antes.
 
-def parse_payment_split(payment_method_str):
+def parse_payment_split(payment_method_str, fallback_amount=None):
     """
     Retorna lista de (metodo, monto) desde el string guardado.
     Ej: "efectivo:3000|nequi:2000" → [('efectivo', 3000.0), ('nequi', 2000.0)]
     Ej: "efectivo" → [('efectivo', None)]
+    Si se pasa fallback_amount, los métodos sin monto usan ese valor.
     """
     if not payment_method_str:
-        return [('efectivo', None)]
+        return [('efectivo', float(fallback_amount) if fallback_amount else None)]
     parts = []
     for chunk in payment_method_str.split('|'):
         chunk = chunk.strip()
@@ -35,9 +36,9 @@ def parse_payment_split(payment_method_str):
             try:
                 parts.append((method.strip(), float(amount_str.strip())))
             except ValueError:
-                parts.append((method.strip(), None))
+                parts.append((method.strip(), float(fallback_amount) if fallback_amount else None))
         else:
-            parts.append((chunk, None))
+            parts.append((chunk, float(fallback_amount) if fallback_amount else None))
     return parts
 
 

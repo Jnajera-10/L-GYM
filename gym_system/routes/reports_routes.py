@@ -311,8 +311,10 @@ def pdf_cierre_caja():
     # ── Desglose por método de pago ──────────────────────────────────
     cash_breakdown = {}
     for p in payments:
+        if p.amount == 0:   # espejo plan pareja — no sumar
+            continue
         for method, amount in parse_payment_split(p.payment_method, p.amount):
-            cash_breakdown[method] = cash_breakdown.get(method, 0) + amount
+            cash_breakdown[method] = cash_breakdown.get(method, 0) + (amount or 0)
 
     # ── Usuario que genera el cierre ─────────────────────────────────
     from flask import session
