@@ -124,13 +124,16 @@ class PaymentService:
 
         # --- Plan Pareja: pago espejo para el segundo cliente ---
         if membership.is_couple_plan and partner_client_id:
+            # El espejo tiene amount=0 (no cobra) y el método sin monto
+            # para evitar que el dashboard lo sume doble en el desglose
+            primary_method = payment_method_str.split(':')[0].split('|')[0].strip()
             partner_payment = Payment(
                 client_id        = partner_client_id,
                 membership_id    = int(form_data['membership_id']),
                 amount           = 0,
                 start_date       = start_date,
                 end_date         = end_date,
-                payment_method   = payment_method_str,
+                payment_method   = primary_method,   # solo el nombre, sin monto
                 notes            = f'Plan Pareja — vinculado al pago del cliente #{form_data["client_id"]}',
                 partner_client_id= int(form_data['client_id']),
             )

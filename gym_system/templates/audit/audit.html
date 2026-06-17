@@ -22,8 +22,13 @@
                 <tr>
                     <td>{{ log.user.username if log.user else 'Sistema' }}</td>
                     <td>
-                        <span class="badge bg-{{ 'success' if log.action == 'create' else 'warning text-dark' if log.action == 'update' else 'danger' }}">
-                            {{ log.action }}
+                        <span class="badge bg-{{
+                            'success'          if log.action == 'create' else
+                            'info text-dark'   if log.action == 'renew' else
+                            'warning text-dark' if log.action == 'update' else
+                            'danger'
+                        }}">
+                            {{ 'Renovación' if log.action == 'renew' else log.action }}
                         </span>
                     </td>
                     <td>{{ log.table_name }}</td>
@@ -32,7 +37,7 @@
                     <td class="small">{{ log.new_value or '—' }}</td>
                     <td>{{ log.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
                     <td>
-                        {% if log.table_name == 'payments' and log.action != 'delete' and log.record_id %}
+                        {% if log.table_name == 'payments' and log.action in ('create', 'renew') and log.record_id %}
                             <a href="{{ url_for('payments.receipt', payment_id=log.record_id) }}"
                                class="btn btn-sm btn-outline-primary"
                                title="Ver recibo del pago #{{ log.record_id }}">

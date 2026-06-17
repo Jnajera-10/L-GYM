@@ -196,10 +196,22 @@ class PaymentsController:
                     membership_id=membership_id,
                 ))
             elif payment:
-                AuditService.log('create', 'payments', payment.id, None, str(payment.amount))
+                AuditService.log(
+                    'renew',
+                    'payments',
+                    payment.id,
+                    f'{payment.client.full_name} — {payment.membership.name}',
+                    f'${payment.amount:,.0f} | {payment.start_date} → {payment.end_date}'
+                )
                 _send_payment_email(payment)
                 if partner_payment:
-                    AuditService.log('create', 'payments', partner_payment.id, None, 'Plan Pareja (espejo)')
+                    AuditService.log(
+                        'renew',
+                        'payments',
+                        partner_payment.id,
+                        f'{partner_payment.client.full_name} — {partner_payment.membership.name}',
+                        'Plan Pareja (espejo)'
+                    )
                     _send_couple_email(partner_payment, payment.client)
                     flash('✅ Membresía activada también para el segundo cliente del Plan Pareja.', 'info')
                 flash('Renovación registrada correctamente.', 'success')

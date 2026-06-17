@@ -163,8 +163,11 @@ class DashboardController:
             Payment.is_deleted   == False,
         ).all()
 
+        # Pagos reales (excluye espejo del plan pareja que tiene amount=0)
+        today_payments_real = [p for p in today_payments if p.amount > 0]
+
         cash_breakdown = {}
-        for p in today_payments:
+        for p in today_payments_real:
             from utils.helpers import parse_payment_split
             for method, monto in parse_payment_split(p.payment_method):
                 # Si viene con monto del split, usarlo; si no, usar p.amount completo
@@ -172,21 +175,21 @@ class DashboardController:
                 cash_breakdown[method] = cash_breakdown.get(method, 0) + val
 
         month_payments = PaymentService.month_payments_raw()
+        month_payments_real = [p for p in month_payments if p.amount > 0]
         month_breakdown = {}
-        for p in month_payments:
+        for p in month_payments_real:
             from utils.helpers import parse_payment_split
             for method, monto in parse_payment_split(p.payment_method):
                 val = monto if monto is not None else p.amount
                 month_breakdown[method] = month_breakdown.get(method, 0) + val
 
         # ── Desglose por turno (hoy) ──────────────────────────────────
-        morning_income   = sum(p.amount for p in today_payments if p.shift == SHIFT_MORNING)
-        afternoon_income = sum(p.amount for p in today_payments if p.shift == SHIFT_AFTERNOON)
+        morning_income   = sum(p.amount for p in today_payments_real if p.shift == SHIFT_MORNING)
+        afternoon_income = sum(p.amount for p in today_payments_real if p.shift == SHIFT_AFTERNOON)
 
         # ── Desglose por método × turno ───────────────────────────────
-        # shift_breakdown = { 'efectivo': {'mañana': X, 'tarde': Y}, ... }
         shift_breakdown = {}
-        for p in today_payments:
+        for p in today_payments_real:
             from utils.helpers import parse_payment_split
             turno = p.shift or SHIFT_MORNING
             for method, monto in parse_payment_split(p.payment_method):
