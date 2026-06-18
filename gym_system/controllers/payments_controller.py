@@ -281,7 +281,8 @@ class PaymentsController:
     @staticmethod
     def delete(payment_id):
         payment = Payment.query.get_or_404(payment_id)
-        mirror = PaymentService.soft_delete_payment(payment)
+        client  = payment.client
+        mirror  = PaymentService.soft_delete_payment(payment)
         db.session.commit()
         AuditService.log('delete', 'payments', payment.id, str(payment.amount), 'eliminado')
         if mirror:
@@ -290,6 +291,32 @@ class PaymentsController:
                 str(mirror.amount),
                 f'eliminado (espejo Plan Pareja del pago #{payment.id})',
             )
+
+        # ── WhatsApp al dueño: alerta de eliminación ───────────────
+        try:
+            from services.notification_service import send_whatsapp_owner
+            from datetime import datetime
+            import pytz
+            hora = datetime.now(pytz.timezone('America/Bogota')).strftime('%H:%M')
+            msg = (
+                f"🗑️ *BODY-FIT GYM — Pago Eliminado*\n"
+                f"{'─'*28}\n"
+                f"👤 *Cliente:* {client.full_name if client else '—'}\n"
+                f"📋 *Plan:* {payment.membership.name if payment.membership else '—'}\n"
+                f"💰 *Monto:* ${'{:,.0f}'.format(payment.amount)} COP\n"
+                f"💳 *Método:* {payment.payment_method or '—'}\n"
+                f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '—'}\n"
+                f"🔖 *Recibo N°:* {payment.id}\n"
+                f"🕑 *Hora eliminación:* {hora}\n"
+                f"{'─'*28}\n"
+                f"⚠️ Este pago fue eliminado del sistema."
+                + (f"\n♻️ También se eliminó el espejo Plan Pareja #{mirror.id}." if mirror else "")
+            )
+            send_whatsapp_owner(msg)
+        except Exception as exc:
+            logger.error(f'[WHATSAPP] Error notificando eliminación: {exc}')
+
+        if mirror:
             flash('Pago eliminado (incluyendo el registro espejo del Plan Pareja).', 'warning')
         else:
             flash('Pago eliminado.', 'warning')
@@ -338,14 +365,22 @@ def _send_payment_email(payment):
             from datetime import datetime
             import pytz
             hora = datetime.now(pytz.timezone('America/Bogota')).strftime('%H:%M')
+            turno = payment.shift or '—'
             msg = (
-                f"💪 *Body-Fit Gym — Nuevo pago registrado*\n\n"
-                f"👤 Cliente: {client.full_name}\n"
-                f"📋 Plan: {payment.membership.name}\n"
-                f"💰 Monto: ${'{:,.0f}'.format(payment.amount)} COP\n"
-                f"💳 Método: {payment.payment_method}\n"
-                f"📅 Vence: {payment.end_date.strftime('%d/%m/%Y')}\n"
-                f"🕐 Hora: {hora}"
+                f"💪 *BODY-FIT GYM — Nuevo Pago*\n"
+                f"{'─'*28}\n"
+                f"👤 *Cliente:* {client.full_name}\n"
+                f"📋 *Plan:* {payment.membership.name}\n"
+                f"💰 *Monto:* ${'{:,.0f}'.format(payment.amount)} COP\n"
+                f"💳 *Método:* {payment.payment_method}\n"
+                f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '—'}\n"
+                f"✅ *Válido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
+                f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"
+                f"🕐 *Turno:* {turno}\n"
+                f"🕑 *Hora:* {hora}\n"
+                f"🔖 *Recibo N°:* {payment.id}\n"
+                f"{'─'*28}\n"
+                f"📝 *Obs:* {payment.notes or 'Sin observaciones'}"
             )
             send_whatsapp_owner(msg)
         except Exception as exc:
