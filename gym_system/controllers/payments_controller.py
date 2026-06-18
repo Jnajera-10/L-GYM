@@ -329,7 +329,30 @@ class PaymentsController:
 def _send_payment_email(payment):
     try:
         client = payment.client
-        if not client or not client.email:
+        if not client:
+            return
+
+        # ── WhatsApp al dueño ──────────────────────────────────────
+        try:
+            from services.notification_service import send_whatsapp_owner
+            from datetime import datetime
+            import pytz
+            hora = datetime.now(pytz.timezone('America/Bogota')).strftime('%H:%M')
+            msg = (
+                f"💪 *Body-Fit Gym — Nuevo pago registrado*\n\n"
+                f"👤 Cliente: {client.full_name}\n"
+                f"📋 Plan: {payment.membership.name}\n"
+                f"💰 Monto: ${'{:,.0f}'.format(payment.amount)} COP\n"
+                f"💳 Método: {payment.payment_method}\n"
+                f"📅 Vence: {payment.end_date.strftime('%d/%m/%Y')}\n"
+                f"🕐 Hora: {hora}"
+            )
+            send_whatsapp_owner(msg)
+        except Exception as exc:
+            logger.error(f'[WHATSAPP] Error notificando al dueño: {exc}')
+
+        # ── Email al cliente ───────────────────────────────────────
+        if not client.email:
             return
         import os
         if not os.environ.get('BREVO_API_KEY') or not os.environ.get('MAIL_FROM'):

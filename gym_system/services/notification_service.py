@@ -10,6 +10,50 @@ BOGOTA = pytz.timezone('America/Bogota')
 logger = logging.getLogger(__name__)
 
 
+# ══════════════════════════════════════════════════════════════════
+#  WHATSAPP — Twilio Sandbox
+# ══════════════════════════════════════════════════════════════════
+
+def send_whatsapp_owner(mensaje: str) -> bool:
+    """
+    Envía un mensaje de WhatsApp al dueño del gym via Twilio Sandbox.
+    Requiere variables de entorno:
+        TWILIO_ACCOUNT_SID
+        TWILIO_AUTH_TOKEN
+        TWILIO_WHATSAPP_FROM   (ej. whatsapp:+14155238886)
+        OWNER_WHATSAPP         (ej. +573045247078)
+    """
+    account_sid = os.environ.get('TWILIO_ACCOUNT_SID', '').strip()
+    auth_token  = os.environ.get('TWILIO_AUTH_TOKEN', '').strip()
+    from_wa     = os.environ.get('TWILIO_WHATSAPP_FROM', 'whatsapp:+14155238886').strip()
+    owner_wa    = os.environ.get('OWNER_WHATSAPP', '').strip()
+
+    if not all([account_sid, auth_token, owner_wa]):
+        print('[WHATSAPP] Variables de entorno no configuradas, se omite notificación.')
+        return False
+
+    # Asegura formato correcto del número destino
+    to_wa = owner_wa if owner_wa.startswith('whatsapp:') else f'whatsapp:{owner_wa}'
+
+    try:
+        url = f'https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json'
+        response = requests.post(
+            url,
+            data={'From': from_wa, 'To': to_wa, 'Body': mensaje},
+            auth=(account_sid, auth_token),
+            timeout=10,
+        )
+        if response.status_code in (200, 201):
+            print(f'[WHATSAPP OK] Mensaje enviado al dueño: {response.json().get("sid")}')
+            return True
+        else:
+            print(f'[WHATSAPP ERROR] {response.status_code}: {response.text[:200]}')
+            return False
+    except Exception as exc:
+        print(f'[WHATSAPP ERROR] {exc}')
+        return False
+
+
 def _send_brevo(to_email: str, subject: str, html_body: str) -> tuple[bool, str]:
     """
     Envía email usando la API HTTP de Brevo (antes Sendinblue).
