@@ -198,6 +198,22 @@ class DashboardController:
                     shift_breakdown[method] = {SHIFT_MORNING: 0, SHIFT_AFTERNOON: 0}
                 shift_breakdown[method][turno] = shift_breakdown[method].get(turno, 0) + val
 
+        # ── Membresías vendidas hoy: cuántas y de qué tipo, por turno ──
+        # (turno mañana = "Día", turno tarde = "Noche")
+        # today_payments_real ya excluye el pago espejo del Plan Pareja
+        # (amount=0), así que cada Plan Pareja vendido cuenta una sola vez.
+        membership_sales_today = {}
+        for p in today_payments_real:
+            turno = p.shift or SHIFT_MORNING
+            plan_name = p.membership.name if p.membership else 'Sin plan'
+            if plan_name not in membership_sales_today:
+                membership_sales_today[plan_name] = {SHIFT_MORNING: 0, SHIFT_AFTERNOON: 0}
+            membership_sales_today[plan_name][turno] = membership_sales_today[plan_name].get(turno, 0) + 1
+
+        total_memberships_sold_today = len(today_payments_real)
+        total_sales_morning   = sum(v.get(SHIFT_MORNING, 0)   for v in membership_sales_today.values())
+        total_sales_afternoon = sum(v.get(SHIFT_AFTERNOON, 0) for v in membership_sales_today.values())
+
         # Ganancia neta del día = ingresos membresías + inventario - base - egresos
         net_income = (stats['today_income'] + today_inventory_income
                       - (opening_cash or 0) - today_expenses_total)
@@ -262,4 +278,9 @@ class DashboardController:
             daily_today_count       = daily_count_today,
             daily_month_income      = daily_month_income,
             daily_month_count       = daily_count_month,
+            # Membresías vendidas hoy (por tipo y turno día/noche)
+            membership_sales_today        = membership_sales_today,
+            total_memberships_sold_today  = total_memberships_sold_today,
+            total_sales_morning           = total_sales_morning,
+            total_sales_afternoon         = total_sales_afternoon,
         )

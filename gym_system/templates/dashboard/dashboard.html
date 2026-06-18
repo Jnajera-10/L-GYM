@@ -604,6 +604,57 @@
     </div>
 </div>
 
+{# ── Membresías vendidas hoy: cuántas y de qué tipo, por turno día/noche ── #}
+<div class="card shadow-sm mb-4" id="memberships-sold-section">
+    <div class="card-header fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>
+            <i class="fas fa-id-card me-2 text-primary"></i>Membresías Vendidas Hoy
+        </span>
+        <span class="badge bg-primary">{{ total_memberships_sold_today }} en total</span>
+    </div>
+    <div class="card-body p-0">
+        {% if membership_sales_today %}
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Plan</th>
+                    <th class="text-center">🌅 Día</th>
+                    <th class="text-center">🌙 Noche</th>
+                    <th class="text-end">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan_name, turnos in membership_sales_today.items() | sort %}
+                {% set dia_count   = turnos.get('mañana', 0) %}
+                {% set noche_count = turnos.get('tarde', 0) %}
+                <tr>
+                    <td class="fw-semibold">{{ plan_name }}</td>
+                    <td class="text-center">{{ dia_count }}</td>
+                    <td class="text-center">{{ noche_count }}</td>
+                    <td class="text-end fw-bold">{{ dia_count + noche_count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+                <tr>
+                    <td class="fw-semibold">Total</td>
+                    <td class="text-center fw-semibold">{{ total_sales_morning }}</td>
+                    <td class="text-center fw-semibold">{{ total_sales_afternoon }}</td>
+                    <td class="text-end fw-bold">{{ total_memberships_sold_today }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        <div class="px-3 py-2 text-muted small border-top">
+            <i class="fas fa-info-circle me-1"></i>Día = turno antes de la 1:00 pm &nbsp;|&nbsp; Noche = turno desde la 1:00 pm
+        </div>
+        {% else %}
+        <div class="p-3 text-muted small">
+            <i class="fas fa-info-circle me-2"></i>Aún no se han vendido membresías hoy.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 {# ══════════════════════════════════════════════════════════════════════
    SECCIÓN EGRESOS — solo visible para administrador
    ══════════════════════════════════════════════════════════════════════ #}
