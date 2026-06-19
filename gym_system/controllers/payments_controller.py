@@ -362,17 +362,26 @@ def _send_payment_email(payment):
         # ── WhatsApp al dueño ──────────────────────────────────────
         try:
             from services.notification_service import send_whatsapp_owner
+            from utils.helpers import parse_payment_split
             from datetime import datetime
             import pytz
             hora = datetime.now(pytz.timezone('America/Bogota')).strftime('%H:%M')
             turno = payment.shift or '—'
+
+            # Método de pago legible (sin montos en el string)
+            metodos = parse_payment_split(payment.payment_method, payment.amount)
+            metodo_str = ' + '.join(
+                f"{m.capitalize()} ${'{:,.0f}'.format(v)}" if v else m.capitalize()
+                for m, v in metodos
+            )
+
             msg = (
                 f"💪 *BODY-FIT GYM — Nuevo Pago*\n"
                 f"{'─'*28}\n"
                 f"👤 *Cliente:* {client.full_name}\n"
                 f"📋 *Plan:* {payment.membership.name}\n"
                 f"💰 *Monto:* ${'{:,.0f}'.format(payment.amount)} COP\n"
-                f"💳 *Método:* {payment.payment_method}\n"
+                f"💳 *Método:* {metodo_str}\n"
                 f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '—'}\n"
                 f"✅ *Válido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
                 f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"

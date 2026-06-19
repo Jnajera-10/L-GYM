@@ -30,9 +30,10 @@ def send_whatsapp_owner(mensaje: str) -> bool:
 
     try:
         import urllib.parse
-        texto_encoded = urllib.parse.quote(mensaje)
+        # CallMeBot requiere codificación estricta del texto
+        texto_encoded = urllib.parse.quote(mensaje, safe='')
         url = f'https://api.callmebot.com/whatsapp.php?phone={phone}&text={texto_encoded}&apikey={apikey}'
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=15)
         if response.status_code == 200:
             print(f'[WHATSAPP OK] Mensaje enviado via CallMeBot a {phone}')
             return True
