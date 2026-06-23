@@ -43,7 +43,7 @@ def send_whatsapp_owner(mensaje: str) -> bool:
             print(f'[WHATSAPP OK] Mensaje enviado via CallMeBot a {phone}')
             return True
         else:
-            print(f'[WHATSAPP ERROR] {response.status_code}: {response.text[:300]}')
+            print(f'[WHATSAPP ERROR] {response.status_code} (len={len(mensaje)} chars): {response.text[:300]}')
             return False
     except Exception as exc:
         print(f'[WHATSAPP ERROR] {exc}')

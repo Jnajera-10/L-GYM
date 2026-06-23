@@ -299,18 +299,18 @@ class PaymentsController:
             import pytz
             hora = datetime.now(pytz.timezone('America/Bogota')).strftime('%H:%M')
             msg = (
-                f"🗑️ *BODY-FIT GYM — Pago Eliminado*\n"
-                f"{'─'*28}\n"
-                f"👤 *Cliente:* {client.full_name if client else '—'}\n"
-                f"📋 *Plan:* {payment.membership.name if payment.membership else '—'}\n"
+                f"🗑️ *BODY-FIT GYM - Pago Eliminado*\n"
+                f"{'-'*28}\n"
+                f"👤 *Cliente:* {client.full_name if client else '-'}\n"
+                f"📋 *Plan:* {payment.membership.name if payment.membership else '-'}\n"
                 f"💰 *Monto:* ${'{:,.0f}'.format(payment.amount)} COP\n"
-                f"💳 *Método:* {payment.payment_method or '—'}\n"
-                f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '—'}\n"
-                f"🔖 *Recibo N°:* {payment.id}\n"
-                f"🕑 *Hora eliminación:* {hora}\n"
-                f"{'─'*28}\n"
+                f"💳 *Metodo:* {payment.payment_method or '-'}\n"
+                f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
+                f"🔖 *Recibo N.:* {payment.id}\n"
+                f"🕑 *Hora eliminacion:* {hora}\n"
+                f"{'-'*28}\n"
                 f"⚠️ Este pago fue eliminado del sistema."
-                + (f"\n♻️ También se eliminó el espejo Plan Pareja #{mirror.id}." if mirror else "")
+                + (f"\n♻️ Tambien se elimino el espejo Plan Pareja #{mirror.id}." if mirror else "")
             )
             send_whatsapp_owner(msg)
         except Exception as exc:
@@ -376,19 +376,19 @@ def _send_payment_email(payment):
             )
 
             msg = (
-                f"💪 *BODY-FIT GYM — Nuevo Pago*\n"
-                f"{'─'*28}\n"
+                f"💪 *BODY-FIT GYM - Nuevo Pago*\n"
+                f"{'-'*28}\n"
                 f"👤 *Cliente:* {client.full_name}\n"
                 f"📋 *Plan:* {payment.membership.name}\n"
                 f"💰 *Monto:* ${'{:,.0f}'.format(payment.amount)} COP\n"
-                f"💳 *Método:* {metodo_str}\n"
-                f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '—'}\n"
-                f"✅ *Válido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
+                f"💳 *Metodo:* {metodo_str}\n"
+                f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
+                f"✅ *Valido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
                 f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"
                 f"🕐 *Turno:* {turno}\n"
                 f"🕑 *Hora:* {hora}\n"
-                f"🔖 *Recibo N°:* {payment.id}\n"
-                f"{'─'*28}\n"
+                f"🔖 *Recibo N.:* {payment.id}\n"
+                f"{'-'*28}\n"
                 f"📝 *Obs:* {payment.notes or 'Sin observaciones'}"
             )
             send_whatsapp_owner(msg)
