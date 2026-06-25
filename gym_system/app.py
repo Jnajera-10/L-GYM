@@ -64,6 +64,34 @@ def create_app():
     with app.app_context():
         db.create_all()
 
+        # ── Seed automático: crea admin y configuración inicial si no existen ──
+        try:
+            from database.models.user import User
+            from database.models.settings import GymSettings
+            import bcrypt as _bcrypt
+            if not User.query.filter_by(username='admin').first():
+                pw = _bcrypt.hashpw('Admin2025!'.encode(), _bcrypt.gensalt()).decode()
+                admin = User(
+                    username='admin',
+                    email='admin@gimnasio.com',
+                    password_hash=pw,
+                    full_name='Administrador',
+                    role='admin',
+                    is_active=True
+                )
+                db.session.add(admin)
+            if not GymSettings.query.first():
+                settings = GymSettings(
+                    gym_name='L-GYM',
+                    address='Ciudad, Colombia',
+                    phone='300 000 0000',
+                    email='info@lgym.com'
+                )
+                db.session.add(settings)
+            db.session.commit()
+        except Exception:
+            pass
+
         # ── Migración automática: payment_method VARCHAR(30) → VARCHAR(120) ──
         # Necesario porque los pagos divididos (ej. "efectivo:50000|nequi:30000")
         # pueden superar 30 caracteres. Se ejecuta en cada arranque; es
