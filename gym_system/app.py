@@ -1,13 +1,14 @@
+
 import os
 from flask import Flask
 from config import Config
 from database.db import db
-
+ 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     db.init_app(app)
-
+ 
     from routes.auth_routes import auth_bp
     from routes.user_routes import user_bp
     from routes.client_routes import client_bp
@@ -26,17 +27,16 @@ def create_app():
     from routes.email_test_routes import email_test_bp
     from routes.profile_routes import profile_bp
     from routes.expense_routes import expense_bp
-    from routes.delete_request_routes import dr_bp  # ← faltaba, causaba 404
+    from routes.delete_request_routes import dr_bp
     from routes.zkbio_routes import zkbio_bp
-
-for bp in [auth_bp, user_bp, client_bp, membership_bp, payment_bp,
-           attendance_bp, inventory_bp, sales_bp, dashboard_bp,
-           reports_bp, notification_bp, settings_bp, backup_bp, audit_bp,
-           health_bp, email_test_bp, profile_bp, expense_bp, dr_bp,
-           zkbio_bp]:
-    app.register_blueprint(bp)
-    # ── Protección global: redirige al login si no hay sesión ───────────
-    # Las rutas públicas permitidas son solo las de autenticación y health.
+ 
+    for bp in [auth_bp, user_bp, client_bp, membership_bp, payment_bp,
+               attendance_bp, inventory_bp, sales_bp, dashboard_bp,
+               reports_bp, notification_bp, settings_bp, backup_bp, audit_bp,
+               health_bp, email_test_bp, profile_bp, expense_bp, dr_bp,
+               zkbio_bp]:
+        app.register_blueprint(bp)
+ 
     @app.before_request
     def require_login():
         from flask import session, redirect, url_for, request
@@ -46,26 +46,26 @@ for bp in [auth_bp, user_bp, client_bp, membership_bp, payment_bp,
             'auth.forgot_password',
             'health.ping',
             'static',
+            'zkbio.membresias_activas',
         }
         if request.endpoint in PUBLIC_ENDPOINTS:
             return None
         if 'user_id' not in session:
             return redirect(url_for('auth.login'))
-
+ 
     @app.errorhandler(404)
     def not_found(e):
         from flask import render_template
         return render_template('errors/404.html'), 404
-
+ 
     @app.errorhandler(500)
     def server_error(e):
         from flask import render_template
         return render_template('errors/500.html'), 500
-
+ 
     with app.app_context():
         db.create_all()
-
-        # ── Seed automático: crea admin y configuración inicial si no existen ──
+ 
         try:
             from database.models.user import User
             from database.models.settings import GymSettings
@@ -92,11 +92,7 @@ for bp in [auth_bp, user_bp, client_bp, membership_bp, payment_bp,
             db.session.commit()
         except Exception:
             pass
-
-        # ── Migración automática: payment_method VARCHAR(30) → VARCHAR(120) ──
-        # Necesario porque los pagos divididos (ej. "efectivo:50000|nequi:30000")
-        # pueden superar 30 caracteres. Se ejecuta en cada arranque; es
-        # idempotente (no hace nada si la columna ya es VARCHAR(120) o mayor).
+ 
         try:
             from sqlalchemy import text, inspect
             inspector = inspect(db.engine)
@@ -113,14 +109,12 @@ for bp in [auth_bp, user_bp, client_bp, membership_bp, payment_bp,
                     ))
                     conn.commit()
         except Exception:
-            # No bloquear el arranque de la app si la migración falla
-            # (ej. tabla aún no existe en el primer deploy).
             pass
-
+ 
     return app
-
+ 
 application = create_app()
-
+ 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     application.run(host='0.0.0.0', port=port, debug=False)
