@@ -35,7 +35,7 @@ def generate_receipt_pdf(payment):
     doc  = SimpleDocTemplate(buf, pagesize=letter)
     styles   = getSampleStyleSheet()
     elements = []
-    elements.append(Paragraph('Body-Fit', ParagraphStyle('title', fontSize=20, textColor=DARK, spaceAfter=4)))
+    elements.append(Paragraph('L-GYM', ParagraphStyle('title', fontSize=20, textColor=DARK, spaceAfter=4)))
     elements.append(Paragraph('RECIBO DE PAGO', styles['Title']))
     elements.append(Spacer(1, 12))
     data = [
@@ -79,7 +79,7 @@ def generate_report_pdf(tipo, data, start=None, end=None, today=None):
         'por_vencer': 'Membresías por Vencer (≤3 días)',
     }
     titulo = titulo_map.get(tipo, tipo.capitalize())
-    elements.append(Paragraph('Body-Fit', ParagraphStyle('brand', fontSize=18, textColor=DARK, spaceAfter=2)))
+    elements.append(Paragraph('L-GYM', ParagraphStyle('brand', fontSize=18, textColor=DARK, spaceAfter=2)))
     now_str = datetime.now().strftime('%d/%m/%Y %H:%M')
     elements.append(Paragraph(f'Reporte: {titulo} — {now_str}', styles['Normal']))
 
@@ -221,7 +221,7 @@ def generate_cierre_caja_pdf(fecha, payments, expenses, sales, opening_cash,
     generado_en = datetime.now(BOGOTA).strftime('%d/%m/%Y %H:%M:%S')
 
     header_data = [[
-        Paragraph('<b>💪 BODY-FIT GYM</b>', titulo),
+        Paragraph('<b>💪 L-GYM</b>', titulo),
     ]]
     header_sub  = [[
         Paragraph(f'CIERRE DE CAJA — {fecha_str}', sub),
@@ -454,7 +454,7 @@ def generate_cierre_caja_pdf(fecha, payments, expenses, sales, opening_cash,
 
     # ── Pie ──────────────────────────────────────────────────────────
     elems.append(Paragraph(
-        f'<font size="7.5" color="#9ca3af">Body-Fit Gym — Documento generado automáticamente el {generado_en} '
+        f'<font size="7.5" color="#9ca3af">L-GYM — Documento generado automáticamente el {generado_en} '
         f'por {usuario_cierre}. Este reporte es confidencial.</font>',
         centro
     ))

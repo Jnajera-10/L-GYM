@@ -57,7 +57,7 @@ def _send_brevo(to_email: str, subject: str, html_body: str) -> tuple[bool, str]
     """
     api_key = os.environ.get('BREVO_API_KEY', '').strip()
     mail_from = os.environ.get('MAIL_FROM', '').strip()
-    mail_name = os.environ.get('MAIL_FROM_NAME', 'Body-Fit Gym').strip()
+    mail_name = os.environ.get('MAIL_FROM_NAME', 'L-GYM').strip()
 
     if not api_key:
         msg = 'BREVO_API_KEY vacía en variables de entorno.'
@@ -110,7 +110,7 @@ def send_email_raw(to_email: str, subject: str, html_body: str,
     import base64
     api_key   = os.environ.get('BREVO_API_KEY', '').strip()
     mail_from = os.environ.get('MAIL_FROM', '').strip()
-    mail_name = os.environ.get('MAIL_FROM_NAME', 'Body-Fit Gym').strip()
+    mail_name = os.environ.get('MAIL_FROM_NAME', 'L-GYM').strip()
 
     if not api_key or not mail_from:
         raise ValueError('BREVO_API_KEY o MAIL_FROM no configurados.')
@@ -170,7 +170,7 @@ def _base_template(titulo: str, contenido: str) -> str:
         <tr><td align="center">
           <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
             <tr><td style="background:#1a1a2e;padding:24px 32px;">
-              <h1 style="margin:0;color:#ffffff;font-size:22px;letter-spacing:1px;">💪 BODY-FIT GYM</h1>
+              <h1 style="margin:0;color:#ffffff;font-size:22px;letter-spacing:1px;">💪 L-GYM</h1>
             </td></tr>
             <tr><td style="background:#e63946;padding:16px 32px;">
               <h2 style="margin:0;color:#ffffff;font-size:18px;">{titulo}</h2>
@@ -178,7 +178,7 @@ def _base_template(titulo: str, contenido: str) -> str:
             <tr><td style="padding:32px;">{contenido}</td></tr>
             <tr><td style="background:#f8f8f8;padding:16px 32px;border-top:1px solid #eeeeee;">
               <p style="margin:0;color:#999999;font-size:12px;text-align:center;">
-                Este es un mensaje automático de Body-Fit Gym.<br>
+                Este es un mensaje automático de L-GYM.<br>
                 Por favor no respondas a este correo.
               </p>
             </td></tr>
@@ -198,7 +198,7 @@ class NotificationService:
             return False
         contenido = f"""
         <p style="color:#333;font-size:16px;">Hola <strong>{client.full_name}</strong>,</p>
-        <p style="color:#555;">¡Bienvenido(a) a <strong>Body-Fit Gym</strong>! 🎉</p>
+        <p style="color:#555;">¡Bienvenido(a) a <strong>L-GYM</strong>! 🎉</p>
         <p style="color:#555;">Tu registro ha sido completado exitosamente.</p>
         <table style="background:#f8f8f8;border-radius:6px;padding:16px;width:100%;margin:16px 0;">
           <tr><td style="color:#666;padding:4px 0;"><strong>Nombre:</strong></td><td style="color:#333;">{client.full_name}</td></tr>
@@ -207,8 +207,8 @@ class NotificationService:
         </table>
         <p style="color:#555;">Ya puedes acercarte al gimnasio y activar tu membresía. ¡Nos vemos! 💪</p>
         """
-        html = _base_template('¡Bienvenido a Body-Fit!', contenido)
-        ok, err = _send_brevo(client.email, '¡Bienvenido a Body-Fit Gym! 💪', html)
+        html = _base_template('¡Bienvenido a L-GYM!', contenido)
+        ok, err = _send_brevo(client.email, '¡Bienvenido a L-GYM! 💪', html)
         return _log_notification(client.id, 'email', f'Bienvenida: {client.full_name}', ok, err)
 
     @staticmethod
@@ -249,7 +249,7 @@ class NotificationService:
         <p style="color:#555;">Renueva antes de que venza para no perder días de entrenamiento. 💪</p>
         """
         html = _base_template(f'Tu membresía vence {dias_texto} {emoji}', contenido)
-        ok, err = _send_brevo(client.email, f'{emoji} Tu membresía vence {dias_texto} — Body-Fit', html)
+        ok, err = _send_brevo(client.email, f'{emoji} Tu membresía vence {dias_texto} — L-GYM', html)
         return _log_notification(client.id, 'email', f'Aviso vencimiento: {days_left} días', ok, err)
 
     @staticmethod
@@ -267,7 +267,7 @@ class NotificationService:
         <p style="color:#555;">¡Te esperamos de vuelta! 💪</p>
         """
         html = _base_template('Tu membresía ha vencido ❌', contenido)
-        ok, err = _send_brevo(client.email, '❌ Tu membresía en Body-Fit ha vencido — ¡Renueva!', html)
+        ok, err = _send_brevo(client.email, '❌ Tu membresía en L-GYM ha vencido — ¡Renueva!', html)
         return _log_notification(client.id, 'email', f'Membresía expirada: {payment.end_date}', ok, err)
 
     @staticmethod
@@ -279,7 +279,7 @@ class NotificationService:
         <p style="color:#555;">Comunícate con el administrador del sistema para continuar.</p>
         """
         html = _base_template('Recuperación de Contraseña 🔐', contenido)
-        ok, err = _send_brevo(user.email, 'Recuperación de contraseña — Body-Fit', html)
+        ok, err = _send_brevo(user.email, 'Recuperación de contraseña — L-GYM', html)
         return _log_notification(None, 'email', f'Reset password: {user.email}', ok, err)
 
     @staticmethod
@@ -312,5 +312,5 @@ class NotificationService:
         <p style="color:#555;">¡Nos vemos en el gym! 💪</p>
         """
         html = _base_template('¡Tu Plan Pareja está activo! 💑', contenido)
-        ok, err = _send_brevo(partner.email, '💑 Tu Plan Pareja en Body-Fit está activo', html)
+        ok, err = _send_brevo(partner.email, '💑 Tu Plan Pareja en L-GYM está activo', html)
         return _log_notification(partner.id, 'email', 'Plan Pareja activado', ok, err)

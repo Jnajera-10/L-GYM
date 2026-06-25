@@ -338,7 +338,7 @@ def pdf_cierre_caja():
         fecha_str = today.strftime('%d/%m/%Y')
         total_dia = sum(p.amount for p in payments)
         html = f"""
-        <h2 style="color:#1a1a2e">💪 Body-Fit — Cierre de Caja {fecha_str}</h2>
+        <h2 style="color:#1a1a2e">💪 L-GYM — Cierre de Caja {fecha_str}</h2>
         <p>Se adjunta el reporte de cierre de caja del día <b>{fecha_str}</b>.</p>
         <table style="border-collapse:collapse;width:100%;max-width:400px">
           <tr style="background:#f3f4f6">
@@ -351,12 +351,12 @@ def pdf_cierre_caja():
             <td style="padding:8px">{len(payments)}</td>
           </tr>
         </table>
-        <p style="color:#6b7280;font-size:12px">Generado por {usuario_cierre} — Body-Fit Gym</p>
+        <p style="color:#6b7280;font-size:12px">Generado por {usuario_cierre} — L-GYM</p>
         """
         try:
             send_email_raw(
                 to_email    = admin.email,
-                subject     = f'Cierre de Caja {fecha_str} — Body-Fit',
+                subject     = f'Cierre de Caja {fecha_str} — L-GYM',
                 html_body   = html,
                 attachment  = pdf_bytes,
                 attach_name = f'cierre_caja_{today.strftime("%Y%m%d")}.pdf',

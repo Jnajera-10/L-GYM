@@ -12,9 +12,9 @@ Qué hace:
   5. Muestra resumen final
 
 Ejecutar desde gym_system/:
-    python fix_memberships.py --excel /ruta/al/REGISTRO_DIARIO_BODYFIT_JUNIO.xlsx
+    python fix_memberships.py --excel /ruta/al/REGISTRO_DIARIO_L-GYM_JUNIO.xlsx
 
-Precios del gimnasio BODYFIT:
+Precios del gimnasio L-GYM:
     Diario        $5.000   (1 día)
     Semanal       $20.000  (7 días)
     Quincenal     $35.000  (15 días)
@@ -88,7 +88,7 @@ NOTE_KEYWORDS = {
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument('--excel', required=True, help='Ruta al REGISTRO_DIARIO_BODYFIT_JUNIO.xlsx')
+    p.add_argument('--excel', required=True, help='Ruta al REGISTRO_DIARIO_L-GYM_JUNIO.xlsx')
     return p.parse_args()
 
 

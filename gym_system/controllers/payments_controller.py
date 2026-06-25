@@ -299,7 +299,7 @@ class PaymentsController:
             import pytz
             hora = datetime.now(pytz.timezone('America/Bogota')).strftime('%H:%M')
             msg = (
-                f"🗑️ *BODY-FIT GYM - Pago Eliminado*\n"
+                f"🗑️ *L-GYM - Pago Eliminado*\n"
                 f"{'-'*28}\n"
                 f"👤 *Cliente:* {client.full_name if client else '-'}\n"
                 f"📋 *Plan:* {payment.membership.name if payment.membership else '-'}\n"
@@ -376,7 +376,7 @@ def _send_payment_email(payment):
             )
 
             msg = (
-                f"💪 *BODY-FIT GYM - Nuevo Pago*\n"
+                f"💪 *L-GYM - Nuevo Pago*\n"
                 f"{'-'*28}\n"
                 f"👤 *Cliente:* {client.full_name}\n"
                 f"📋 *Plan:* {payment.membership.name}\n"

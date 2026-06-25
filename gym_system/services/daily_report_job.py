@@ -88,7 +88,7 @@ def run_daily_report(app):
                 lineas_vencer = '   OK - Ninguna membresia por vencer\n'
 
             mensaje = (
-                f"REPORTE DEL DIA - BODY-FIT GYM\n"
+                f"REPORTE DEL DIA - L-GYM\n"
                 f"Fecha: {fecha_str}\n"
                 f"----------------------------\n"
                 f"Total ingresos: ${'{:,.0f}'.format(total_dia)} COP\n"
@@ -100,7 +100,7 @@ def run_daily_report(app):
                 f"----------------------------\n"
                 f"Proximos a vencer:\n{lineas_vencer}"
                 f"----------------------------\n"
-                f"Generado a las {now.strftime('%H:%M')} | Body-Fit"
+                f"Generado a las {now.strftime('%H:%M')} | L-GYM"
             )
 
             from services.notification_service import send_whatsapp_owner

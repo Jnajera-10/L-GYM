@@ -1,11 +1,11 @@
 """
 import_clientes.py
 =================
-Importa los 221 clientes del Excel REGISTRO_DIARIO_BODYFIT_JUNIO.xlsx
+Importa los 221 clientes del Excel REGISTRO_DIARIO_L-GYM_JUNIO.xlsx
 a la base de datos del sistema gym_system.
 
 USO (desde la carpeta gym_system/):
-    python import_clientes.py --excel /ruta/al/REGISTRO_DIARIO_BODYFIT_JUNIO.xlsx
+    python import_clientes.py --excel /ruta/al/REGISTRO_DIARIO_L-GYM_JUNIO.xlsx
 
 REQUISITOS:
     - Tener las variables de entorno configuradas (.env o Render)
@@ -162,7 +162,7 @@ def run(excel_path: str):
                     enrollment_date = enrollmt,
                     is_active       = is_active,
                     is_migrated     = True,
-                    notes           = 'Importado desde Excel REGISTRO_DIARIO_BODYFIT_JUNIO',
+                    notes           = 'Importado desde Excel REGISTRO_DIARIO_L-GYM_JUNIO',
                 )
                 db.session.add(cliente)
                 db.session.flush()   # obtener cliente.id
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--excel',
         required=True,
-        help='Ruta al archivo REGISTRO_DIARIO_BODYFIT_JUNIO.xlsx'
+        help='Ruta al archivo REGISTRO_DIARIO_L-GYM_JUNIO.xlsx'
     )
     args = parser.parse_args()
 
