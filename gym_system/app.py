@@ -27,13 +27,14 @@ def create_app():
     from routes.profile_routes import profile_bp
     from routes.expense_routes import expense_bp
     from routes.delete_request_routes import dr_bp  # ← faltaba, causaba 404
+    from routes.zkbio_routes import zkbio_bp
 
-    for bp in [auth_bp, user_bp, client_bp, membership_bp, payment_bp,
-               attendance_bp, inventory_bp, sales_bp, dashboard_bp,
-               reports_bp, notification_bp, settings_bp, backup_bp, audit_bp,
-               health_bp, email_test_bp, profile_bp, expense_bp, dr_bp]:
-        app.register_blueprint(bp)
-
+for bp in [auth_bp, user_bp, client_bp, membership_bp, payment_bp,
+           attendance_bp, inventory_bp, sales_bp, dashboard_bp,
+           reports_bp, notification_bp, settings_bp, backup_bp, audit_bp,
+           health_bp, email_test_bp, profile_bp, expense_bp, dr_bp,
+           zkbio_bp]:
+    app.register_blueprint(bp)
     # ── Protección global: redirige al login si no hay sesión ───────────
     # Las rutas públicas permitidas son solo las de autenticación y health.
     @app.before_request
