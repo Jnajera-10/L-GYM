@@ -10,10 +10,14 @@ from datetime import datetime
 BOGOTA = pytz.timezone('America/Bogota')
 
 
+def _fmt(value):
+    """Formatea número con puntos como separador de miles (estilo colombiano)."""
+    return f"{int(value):,}".replace(',', '.')
+
+
 class SalesService:
     @staticmethod
     def create_sale(client_id, items_data, payment_method, notes=None, is_pending=False):
-        # Validar stock ANTES de escribir nada
         for item in items_data:
             product = Product.query.get(item['product_id'])
             if not product:
@@ -54,8 +58,8 @@ class SalesService:
                 mov_class = InventoryService.build_movement(product.id, item['quantity'], 'Venta')
                 db.session.add(mov_class)
 
-                lines_whatsapp.append(f"  • {product.name} x{item['quantity']} = ${subtotal:,.0f}")
-                lines_audit.append(f"{product.name} x{item['quantity']} (${subtotal:,.0f})")
+                lines_whatsapp.append(f"  • {product.name} x{item['quantity']} = ${_fmt(subtotal)}")
+                lines_audit.append(f"{product.name} x{item['quantity']} (${_fmt(subtotal)})")
 
             sale.total = total
             db.session.commit()
@@ -70,7 +74,7 @@ class SalesService:
                         f"📅 {now}\n"
                         f"💳 Método: {payment_method}\n\n"
                         f"*Productos:*\n{productos_str}\n\n"
-                        f"💰 *TOTAL: ${total:,.0f} COP*\n"
+                        f"💰 *TOTAL: ${_fmt(total)} COP*\n"
                         f"⚠️ *CLIENTE AÚN NO HA PAGADO — ESTÁ EN DEUDA.*"
                     )
                 else:
@@ -79,7 +83,7 @@ class SalesService:
                         f"📅 {now}\n"
                         f"💳 Pago: {payment_method}\n\n"
                         f"*Productos:*\n{productos_str}\n\n"
-                        f"💰 *TOTAL: ${total:,.0f} COP*"
+                        f"💰 *TOTAL: ${_fmt(total)} COP*"
                     )
                 if notes:
                     msg += f"\n📝 Nota: {notes}"
@@ -96,7 +100,7 @@ class SalesService:
                     table_name='sales',
                     record_id=sale.id,
                     old_value=None,
-                    new_value=f"[{estado}] Total: ${total:,.0f} | Pago: {payment_method} | {detalle}"
+                    new_value=f"[{estado}] Total: ${_fmt(total)} | Pago: {payment_method} | {detalle}"
                 )
             except Exception as audit_exc:
                 print(f'[AUDIT] Error al registrar auditoría de venta: {audit_exc}')
