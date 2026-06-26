@@ -371,7 +371,7 @@ def _send_payment_email(payment):
             # Método de pago legible (sin montos en el string)
             metodos = parse_payment_split(payment.payment_method, payment.amount)
             metodo_str = ' + '.join(
-                f"{m.capitalize()} ${'{:,.0f}'.format(v)}" if v else m.capitalize()
+                f"{m.capitalize()} ${'{:,.0f}'.format(v)}" if v is not None else m.capitalize()
                 for m, v in metodos
             )
 

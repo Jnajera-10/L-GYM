@@ -8,8 +8,8 @@ SQLAlchemy==2.0.23
 python-dotenv==1.0.0
 pytz==2023.3
 openpyxl==3.1.2
-reportlab==4.0.7
-Pillow==10.1.0
+reportlab==4.2.5
+Pillow==11.2.1
 bcrypt==4.1.2
 WTForms==3.1.1
 requests==2.31.0

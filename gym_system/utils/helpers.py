@@ -27,7 +27,7 @@ def parse_payment_split(payment_method_str, fallback_amount=None):
     Si se pasa fallback_amount, los métodos sin monto usan ese valor.
     """
     if not payment_method_str:
-        return [('efectivo', float(fallback_amount) if fallback_amount else None)]
+        return [('efectivo', float(fallback_amount) if fallback_amount is not None else None)]
     parts = []
     for chunk in payment_method_str.split('|'):
         chunk = chunk.strip()
@@ -36,9 +36,9 @@ def parse_payment_split(payment_method_str, fallback_amount=None):
             try:
                 parts.append((method.strip(), float(amount_str.strip())))
             except ValueError:
-                parts.append((method.strip(), float(fallback_amount) if fallback_amount else None))
+                parts.append((method.strip(), float(fallback_amount) if fallback_amount is not None else None))
         else:
-            parts.append((chunk, float(fallback_amount) if fallback_amount else None))
+            parts.append((chunk, float(fallback_amount) if fallback_amount is not None else None))
     return parts
 
 
