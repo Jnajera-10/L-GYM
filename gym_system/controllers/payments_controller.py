@@ -356,7 +356,37 @@ class PaymentsController:
         accion = f'agregaron {days}' if days > 0 else f'quitaron {abs(days)}'
         flash(f'✅ Se {accion} días a {payment.client.full_name}. Nuevo vencimiento: {payment.end_date.strftime("%d/%m/%Y")}.', 'success')
         return redirect(url_for('clients.detail', client_id=payment.client_id))
-
+    
+    @staticmethod
+    def mark_paid(payment_id):
+        """Marca un pago pendiente como pagado."""
+        payment = Payment.query.get_or_404(payment_id)
+        changed = PaymentService.mark_as_paid(payment)
+        if changed:
+            AuditService.log('update', 'payments', payment.id, 'pendiente', 'pagado')
+            try:
+                from services.notification_service import send_whatsapp_owner
+                hora = datetime.now(BOGOTA).strftime('%H:%M')
+                msg = (
+                    f"✅ *L-GYM - Pago Confirmado*\n"
+                    f"{'-'*28}\n"
+                    f"👤 *Cliente:* {payment.client.full_name if payment.client else '-'}\n"
+                    f"📋 *Plan:* {payment.membership.name if payment.membership else '-'}\n"
+                    f"💰 *Monto:* ${_fmt(payment.amount)} COP\n"
+                    f"💳 *Metodo:* {payment.payment_method or '-'}\n"
+                    f"📅 *Fecha:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
+                    f"🕑 *Hora:* {hora}\n"
+                    f"🔖 *Recibo N.:* {payment.id}\n"
+                    f"{'-'*28}\n"
+                    f"💵 El cliente saldó su deuda pendiente."
+                )
+                send_whatsapp_owner(msg)
+            except Exception as exc:
+                logger.error(f'[WHATSAPP] Error notificando pago confirmado: {exc}')
+            flash(f'✅ Pago #{payment.id} marcado como pagado.', 'success')
+        else:
+            flash('Este pago ya estaba marcado como pagado.', 'info')
+        return redirect(url_for('payments.index'))
 
 # ──────────────────────────────────────────────────────────────────────
 # Helpers de email
