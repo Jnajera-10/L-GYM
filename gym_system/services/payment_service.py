@@ -74,6 +74,14 @@ class PaymentService:
         from utils.helpers import serialize_payment_split, primary_payment_method
         payment_method_str = serialize_payment_split(split_parts)
 
+        # Calcular amount desde split_parts (fuente confiable)
+        amount_val = sum(a for _, a in split_parts) if split_parts else 0
+        if amount_val == 0:
+            try:
+                amount_val = float(form_data.get('amount', 0))
+            except (ValueError, TypeError):
+                amount_val = 0
+
         efectivo_amount = sum(a for m, a in split_parts if m == 'efectivo')
         if efectivo_amount > 0:
             try:
@@ -92,14 +100,13 @@ class PaymentService:
         else:
             payment_date = datetime.now(BOGOTA).date()
 
-        # ── Estado: pendiente si el checkbox viene marcado ────────────
         is_pending = form_data.get('is_pending') == 'on'
         payment_status = 'pendiente' if is_pending else 'pagado'
 
         payment = Payment(
             client_id        = int(form_data['client_id']),
             membership_id    = int(form_data['membership_id']),
-            amount           = float(form_data['amount']),
+            amount           = amount_val,
             payment_date     = payment_date,
             start_date       = start_date,
             end_date         = end_date,
@@ -167,9 +174,6 @@ class PaymentService:
             return True
         return False
 
-    # ------------------------------------------------------------------
-    # Helpers de ingresos — solo cuentan pagos 'pagado'
-    # ------------------------------------------------------------------
     @staticmethod
     def today_income():
         today = datetime.now(BOGOTA).date()
