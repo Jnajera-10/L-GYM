@@ -12,8 +12,8 @@ BOGOTA = pytz.timezone('America/Bogota')
 
 class SalesService:
     @staticmethod
-    def create_sale(client_id, items_data, payment_method, notes=None):
-        # Validar stock de todos los productos ANTES de escribir nada
+    def create_sale(client_id, items_data, payment_method, notes=None, is_pending=False):
+        # Validar stock ANTES de escribir nada
         for item in items_data:
             product = Product.query.get(item['product_id'])
             if not product:
@@ -23,13 +23,20 @@ class SalesService:
                                  f'Disponible: {product.quantity}, solicitado: {item["quantity"]}.')
 
         try:
+            payment_status = 'pendiente' if is_pending else 'pagado'
             total = 0
-            sale = Sale(client_id=client_id, payment_method=payment_method, notes=notes, total=0)
+            sale = Sale(
+                client_id=client_id,
+                payment_method=payment_method,
+                notes=notes,
+                total=0,
+                payment_status=payment_status,
+            )
             db.session.add(sale)
             db.session.flush()
 
-            lines_whatsapp = []  # Para armar el mensaje de WhatsApp
-            lines_audit = []     # Para armar el detalle de auditoría
+            lines_whatsapp = []
+            lines_audit = []
 
             for item in items_data:
                 product = Product.query.get(item['product_id'])
@@ -43,51 +50,55 @@ class SalesService:
                     subtotal=subtotal
                 )
                 db.session.add(sale_item)
-                # Descontar stock dentro de la misma sesión (sin commit interno)
                 product.quantity -= item['quantity']
                 mov_class = InventoryService.build_movement(product.id, item['quantity'], 'Venta')
                 db.session.add(mov_class)
 
-                lines_whatsapp.append(
-                    f"  • {product.name} x{item['quantity']} = ${subtotal:,.0f}"
-                )
-                lines_audit.append(
-                    f"{product.name} x{item['quantity']} (${subtotal:,.0f})"
-                )
+                lines_whatsapp.append(f"  • {product.name} x{item['quantity']} = ${subtotal:,.0f}")
+                lines_audit.append(f"{product.name} x{item['quantity']} (${subtotal:,.0f})")
 
             sale.total = total
             db.session.commit()
 
-            # ── WhatsApp al dueño ──────────────────────────────────────────
+            # ── WhatsApp ──────────────────────────────────────────────
             try:
                 now = datetime.now(BOGOTA).strftime('%d/%m/%Y %H:%M')
                 productos_str = "\n".join(lines_whatsapp)
-                msg = (
-                    f"🛒 *VENTA REGISTRADA — L-GYM*\n"
-                    f"📅 {now}\n"
-                    f"💳 Pago: {payment_method}\n\n"
-                    f"*Productos:*\n{productos_str}\n\n"
-                    f"💰 *TOTAL: ${total:,.0f} COP*"
-                )
+                if is_pending:
+                    msg = (
+                        f"⏳ *VENTA PENDIENTE — L-GYM*\n"
+                        f"📅 {now}\n"
+                        f"💳 Método: {payment_method}\n\n"
+                        f"*Productos:*\n{productos_str}\n\n"
+                        f"💰 *TOTAL: ${total:,.0f} COP*\n"
+                        f"⚠️ *CLIENTE AÚN NO HA PAGADO — ESTÁ EN DEUDA.*"
+                    )
+                else:
+                    msg = (
+                        f"🛒 *VENTA REGISTRADA — L-GYM*\n"
+                        f"📅 {now}\n"
+                        f"💳 Pago: {payment_method}\n\n"
+                        f"*Productos:*\n{productos_str}\n\n"
+                        f"💰 *TOTAL: ${total:,.0f} COP*"
+                    )
                 if notes:
                     msg += f"\n📝 Nota: {notes}"
                 send_whatsapp_owner(msg)
             except Exception as wa_exc:
-                # No bloquear la venta si WhatsApp falla
                 print(f'[WHATSAPP] Error al enviar notificación de venta: {wa_exc}')
 
-            # ── Auditoría ─────────────────────────────────────────────────
+            # ── Auditoría ─────────────────────────────────────────────
             try:
                 detalle = " | ".join(lines_audit)
+                estado = "PENDIENTE" if is_pending else "PAGADO"
                 AuditService.log(
                     action='VENTA',
                     table_name='sales',
                     record_id=sale.id,
                     old_value=None,
-                    new_value=f"Total: ${total:,.0f} | Pago: {payment_method} | {detalle}"
+                    new_value=f"[{estado}] Total: ${total:,.0f} | Pago: {payment_method} | {detalle}"
                 )
             except Exception as audit_exc:
-                # No bloquear la venta si la auditoría falla
                 print(f'[AUDIT] Error al registrar auditoría de venta: {audit_exc}')
 
             return sale
@@ -95,3 +106,12 @@ class SalesService:
         except Exception:
             db.session.rollback()
             raise
+
+    @staticmethod
+    def mark_as_paid(sale):
+        """Marca una venta pendiente como pagada."""
+        if sale.payment_status == 'pendiente':
+            sale.payment_status = 'pagado'
+            db.session.commit()
+            return True
+        return False

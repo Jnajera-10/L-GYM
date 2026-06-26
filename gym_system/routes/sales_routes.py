@@ -4,6 +4,7 @@ from database.models.inventory import Product
 from database.models.client import Client
 from database.db import db
 from services.sales_service import SalesService
+from services.audit_service import AuditService
 from utils.security import login_required, admin_required
 import logging
 
@@ -36,11 +37,11 @@ def new():
         client_id = request.form.get('client_id') or None
         payment_method = request.form.get('payment_method', 'efectivo')
         notes = request.form.get('notes', '').strip() or None
+        is_pending = request.form.get('is_pending') == 'on'
 
         product_ids = request.form.getlist('product_id')
         quantities = request.form.getlist('quantity')
 
-        # Conversión segura; saltar filas con datos inválidos
         items = []
         parse_error = False
         for pid_str, qty_str in zip(product_ids, quantities):
@@ -60,8 +61,11 @@ def new():
             return render_template('sales/new_sale.html', products=products, clients=clients)
 
         try:
-            sale = SalesService.create_sale(client_id, items, payment_method, notes)
-            flash('Venta registrada exitosamente.', 'success')
+            sale = SalesService.create_sale(client_id, items, payment_method, notes, is_pending)
+            if is_pending:
+                flash('⏳ Venta registrada como PENDIENTE — el cliente aún no ha pagado.', 'warning')
+            else:
+                flash('✅ Venta registrada exitosamente.', 'success')
             return redirect(url_for('sales.invoice', sid=sale.id))
         except ValueError as e:
             flash(str(e), 'danger')
@@ -72,6 +76,43 @@ def new():
     return render_template('sales/new_sale.html', products=products, clients=clients)
 
 
+@sales_bp.route('/<int:sid>/mark_paid', methods=['POST'])
+@login_required
+def mark_paid(sid):
+    sale = Sale.query.get_or_404(sid)
+    changed = SalesService.mark_as_paid(sale)
+    if changed:
+        AuditService.log('update', 'sales', sale.id, 'pendiente', 'pagado')
+        # WhatsApp confirmación
+        try:
+            from services.notification_service import send_whatsapp_owner
+            from datetime import datetime
+            import pytz
+            hora = datetime.now(pytz.timezone('America/Bogota')).strftime('%H:%M')
+            productos_str = "\n".join(
+                f"  • {item.product.name} x{item.quantity} = ${item.subtotal:,.0f}"
+                for item in sale.items if item.product
+            )
+            msg = (
+                f"✅ *VENTA COBRADA — L-GYM*\n"
+                f"{'─'*28}\n"
+                f"🔖 *Venta N.:* {sale.id}\n"
+                f"👤 *Cliente:* {sale.client.full_name if sale.client else 'General'}\n"
+                f"*Productos:*\n{productos_str}\n\n"
+                f"💰 *TOTAL: ${sale.total:,.0f} COP*\n"
+                f"🕑 *Hora cobro:* {hora}\n"
+                f"{'─'*28}\n"
+                f"💵 El cliente saldó su deuda pendiente."
+            )
+            send_whatsapp_owner(msg)
+        except Exception as exc:
+            logger.error(f'[WHATSAPP] Error notificando venta cobrada: {exc}')
+        flash(f'✅ Venta #{sid} marcada como pagada.', 'success')
+    else:
+        flash('Esta venta ya estaba marcada como pagada.', 'info')
+    return redirect(url_for('sales.index'))
+
+
 @sales_bp.route('/<int:sid>/delete', methods=['POST'])
 @admin_required
 def delete(sid):
@@ -80,7 +121,6 @@ def delete(sid):
         flash('Esta venta ya fue eliminada.', 'warning')
         return redirect(url_for('sales.index'))
 
-    # Revertir stock al eliminar (soft-delete)
     try:
         for item in sale.items:
             if item.product:
