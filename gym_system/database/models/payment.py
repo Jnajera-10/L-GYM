@@ -22,21 +22,24 @@ class Payment(db.Model):
     amount           = db.Column(db.Float, nullable=False)
     payment_date     = db.Column(db.Date, default=lambda: datetime.now(BOGOTA).date())
     start_date       = db.Column(db.Date, nullable=False)
-    end_date         = db.Column(db.Date, nullable=False)   # último día INCLUSIVE (vence 23:59)
+    end_date         = db.Column(db.Date, nullable=False)
     payment_method   = db.Column(db.String(120), default='efectivo')
     notes            = db.Column(db.Text)
     is_deleted       = db.Column(db.Boolean, default=False)
     created_at       = db.Column(db.DateTime, default=lambda: datetime.now(BOGOTA))
 
     # ── Turno ─────────────────────────────────────────────────────────
-    shift            = db.Column(db.String(10), default=_get_shift)   # 'mañana' | 'tarde'
+    shift            = db.Column(db.String(10), default=_get_shift)
 
-    # ── Efectivo: monto entregado y vuelto (solo si method='efectivo') ─
-    cash_received    = db.Column(db.Float, nullable=True)   # lo que dio el cliente
-    cash_change      = db.Column(db.Float, nullable=True)   # vuelto devuelto
+    # ── Efectivo: monto entregado y vuelto ────────────────────────────
+    cash_received    = db.Column(db.Float, nullable=True)
+    cash_change      = db.Column(db.Float, nullable=True)
 
-    # Plan pareja: segundo cliente (opcional, solo para couple plan)
+    # ── Plan pareja ───────────────────────────────────────────────────
     partner_client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=True)
+
+    # ── Estado de pago: 'pagado' | 'pendiente' ───────────────────────
+    payment_status   = db.Column(db.String(20), default='pagado', nullable=False)
 
     membership = db.relationship('Membership', backref='payments')
     partner    = db.relationship(

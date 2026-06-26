@@ -350,6 +350,40 @@ class PaymentsController:
         return redirect(url_for('clients.detail', client_id=payment.client_id))
 
 
+    @staticmethod
+    def mark_paid(payment_id):
+        """Marca un pago pendiente como pagado."""
+        from services.payment_service import PaymentService
+        payment = Payment.query.get_or_404(payment_id)
+        changed = PaymentService.mark_as_paid(payment)
+        if changed:
+            AuditService.log('update', 'payments', payment.id, 'pendiente', 'pagado')
+            # WhatsApp: notificar que ya pagó
+            try:
+                from services.notification_service import send_whatsapp_owner
+                hora = datetime.now(BOGOTA).strftime('%H:%M')
+                msg = (
+                    f"✅ *L-GYM - Pago Confirmado*\n"
+                    f"{'-'*28}\n"
+                    f"👤 *Cliente:* {payment.client.full_name if payment.client else '-'}\n"
+                    f"📋 *Plan:* {payment.membership.name if payment.membership else '-'}\n"
+                    f"💰 *Monto:* ${'{:,.0f}'.format(payment.amount)} COP\n"
+                    f"💳 *Metodo:* {payment.payment_method or '-'}\n"
+                    f"📅 *Fecha:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
+                    f"🕑 *Hora:* {hora}\n"
+                    f"🔖 *Recibo N.:* {payment.id}\n"
+                    f"{'-'*28}\n"
+                    f"💵 El cliente saldó su deuda pendiente."
+                )
+                send_whatsapp_owner(msg)
+            except Exception as exc:
+                logger.error(f'[WHATSAPP] Error notificando pago confirmado: {exc}')
+            flash(f'✅ Pago #{payment.id} marcado como pagado.', 'success')
+        else:
+            flash('Este pago ya estaba marcado como pagado.', 'info')
+        return redirect(url_for('payments.index'))
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Helpers de email
 # ──────────────────────────────────────────────────────────────────────
@@ -375,22 +409,41 @@ def _send_payment_email(payment):
                 for m, v in metodos
             )
 
-            msg = (
-                f"💪 *L-GYM - Nuevo Pago*\n"
-                f"{'-'*28}\n"
-                f"👤 *Cliente:* {client.full_name}\n"
-                f"📋 *Plan:* {payment.membership.name}\n"
-                f"💰 *Monto:* ${'{:,.0f}'.format(payment.amount)} COP\n"
-                f"💳 *Metodo:* {metodo_str}\n"
-                f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
-                f"✅ *Valido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
-                f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"
-                f"🕐 *Turno:* {turno}\n"
-                f"🕑 *Hora:* {hora}\n"
-                f"🔖 *Recibo N.:* {payment.id}\n"
-                f"{'-'*28}\n"
-                f"📝 *Obs:* {payment.notes or 'Sin observaciones'}"
-            )
+            is_pending = getattr(payment, 'payment_status', 'pagado') == 'pendiente'
+            if is_pending:
+                msg = (
+                    f"⏳ *L-GYM - PAGO PENDIENTE*\n"
+                    f"{'-'*28}\n"
+                    f"👤 *Cliente:* {client.full_name}\n"
+                    f"📋 *Plan:* {payment.membership.name}\n"
+                    f"💰 *Monto:* ${'{:,.0f}'.format(payment.amount)} COP\n"
+                    f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
+                    f"✅ *Valido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
+                    f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"
+                    f"🕐 *Turno:* {turno}\n"
+                    f"🕑 *Hora:* {hora}\n"
+                    f"🔖 *Recibo N.:* {payment.id}\n"
+                    f"{'-'*28}\n"
+                    f"⚠️ *ESTE CLIENTE AÚN NO HA PAGADO — ESTÁ EN DEUDA.*\n"
+                    f"📝 *Obs:* {payment.notes or 'Sin observaciones'}"
+                )
+            else:
+                msg = (
+                    f"💪 *L-GYM - Nuevo Pago*\n"
+                    f"{'-'*28}\n"
+                    f"👤 *Cliente:* {client.full_name}\n"
+                    f"📋 *Plan:* {payment.membership.name}\n"
+                    f"💰 *Monto:* ${'{:,.0f}'.format(payment.amount)} COP\n"
+                    f"💳 *Metodo:* {metodo_str}\n"
+                    f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
+                    f"✅ *Valido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
+                    f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"
+                    f"🕐 *Turno:* {turno}\n"
+                    f"🕑 *Hora:* {hora}\n"
+                    f"🔖 *Recibo N.:* {payment.id}\n"
+                    f"{'-'*28}\n"
+                    f"📝 *Obs:* {payment.notes or 'Sin observaciones'}"
+                )
             send_whatsapp_owner(msg)
         except Exception as exc:
             logger.error(f'[WHATSAPP] Error notificando al dueño: {exc}')

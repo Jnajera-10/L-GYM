@@ -9,6 +9,7 @@ payment_bp.add_url_rule('/create', 'create', login_required(PaymentsController.c
 payment_bp.add_url_rule('/<int:payment_id>/receipt', 'receipt', login_required(PaymentsController.receipt))
 payment_bp.add_url_rule('/<int:payment_id>/extend', 'extend', admin_required(PaymentsController.extend_days), methods=['POST'])
 payment_bp.add_url_rule('/<int:payment_id>/delete', 'delete', admin_required(PaymentsController.delete), methods=['POST'])
+payment_bp.add_url_rule('/<int:payment_id>/mark_paid', 'mark_paid', login_required(PaymentsController.mark_paid), methods=['POST'])
 
-# ── Renovación rápida: precarga el formulario con cliente y plan ──
+# Renovación rápida
 payment_bp.add_url_rule('/renew', 'renew', login_required(PaymentsController.renew), methods=['GET', 'POST'])

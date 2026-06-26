@@ -20,12 +20,10 @@ class PaymentService:
         start_date = datetime.strptime(form_data['start_date'], '%Y-%m-%d').date()
         end_date   = start_date + timedelta(days=membership.duration_days - 1)
 
-        # --- Plan Diario: usar cliente especial DIARIO automáticamente ---
-        form_data = dict(form_data)   # mutable copy
+        form_data = dict(form_data)
         if membership.membership_type == 'diario':
             diario_client = Client.query.filter_by(document_number='DIARIO-0000').first()
             if not diario_client:
-                # Crear al vuelo si no existe (failsafe)
                 diario_client = Client(
                     full_name='DIARIO', document_type='otro',
                     document_number='DIARIO-0000', is_active=True,
@@ -35,7 +33,6 @@ class PaymentService:
                 db.session.flush()
             form_data['client_id'] = str(diario_client.id)
 
-        # --- Validación: Plan Pareja ---
         partner_client_id = None
         partner_payment   = None
         if membership.is_couple_plan:
@@ -49,16 +46,13 @@ class PaymentService:
             if not partner or not partner.is_active:
                 return None, None, 'El segundo cliente del Plan Pareja no existe o está inactivo.'
 
-        # --- Validación: Plan Estudiantil ---
         if membership.is_student_plan:
             if form_data.get('is_student') != 'on':
                 return None, None, 'El Plan Estudiantil es exclusivo para bachilleres. Confirma el requisito.'
 
-        # --- Pago mixto: leer métodos y montos ---
         cash_received = None
         cash_change   = None
 
-        # Leer hasta 4 métodos del formulario: method_1, amount_1, method_2, amount_2 ...
         split_parts = []
         for i in range(1, 5):
             m = form_data.get(f'method_{i}', '').strip()
@@ -69,7 +63,6 @@ class PaymentService:
                 except ValueError:
                     pass
 
-        # Si no vino en formato split, usar campo legacy
         if not split_parts:
             m = form_data.get('payment_method', 'efectivo')
             try:
@@ -81,10 +74,6 @@ class PaymentService:
         from utils.helpers import serialize_payment_split, primary_payment_method
         payment_method_str = serialize_payment_split(split_parts)
 
-        # Vuelto solo si hay efectivo. Se compara contra el monto que
-        # corresponde a efectivo (efectivo_amount), no contra el total
-        # del pago, porque en pagos mixtos el cliente solo entrega
-        # efectivo por su parte en efectivo.
         efectivo_amount = sum(a for m, a in split_parts if m == 'efectivo')
         if efectivo_amount > 0:
             try:
@@ -94,9 +83,6 @@ class PaymentService:
             except (ValueError, TypeError):
                 pass
 
-        # Fecha de pago: si el usuario la especificó (pago de otro mes), usarla.
-        # Si no, usar hoy. Esto permite registrar pagos atrasados sin que
-        # aparezcan como ganancia del día/mes incorrecto.
         raw_payment_date = form_data.get('payment_date', '').strip()
         if raw_payment_date:
             try:
@@ -105,6 +91,10 @@ class PaymentService:
                 payment_date = datetime.now(BOGOTA).date()
         else:
             payment_date = datetime.now(BOGOTA).date()
+
+        # ── Estado: pendiente si el checkbox viene marcado ────────────
+        is_pending = form_data.get('is_pending') == 'on'
+        payment_status = 'pendiente' if is_pending else 'pagado'
 
         payment = Payment(
             client_id        = int(form_data['client_id']),
@@ -119,13 +109,11 @@ class PaymentService:
             shift            = form_data.get('shift', _get_shift()),
             cash_received    = cash_received,
             cash_change      = cash_change,
+            payment_status   = payment_status,
         )
         db.session.add(payment)
 
-        # --- Plan Pareja: pago espejo para el segundo cliente ---
         if membership.is_couple_plan and partner_client_id:
-            # El espejo tiene amount=0 (no cobra) y el método sin monto
-            # para evitar que el dashboard lo sume doble en el desglose
             primary_method = payment_method_str.split(':')[0].split('|')[0].strip()
             partner_payment = Payment(
                 client_id        = partner_client_id,
@@ -133,18 +121,15 @@ class PaymentService:
                 amount           = 0,
                 start_date       = start_date,
                 end_date         = end_date,
-                payment_method   = primary_method,   # solo el nombre, sin monto
+                payment_method   = primary_method,
                 notes            = f'Plan Pareja — vinculado al pago del cliente #{form_data["client_id"]}',
                 partner_client_id= int(form_data['client_id']),
+                payment_status   = payment_status,
             )
             db.session.add(partner_payment)
 
         db.session.commit()
 
-        # ── Asistencia automática al registrar pago ────────────────────
-        # Se registra la asistencia del día para el cliente principal
-        # y para el segundo cliente si es Plan Pareja.
-        # El cliente DIARIO no genera asistencia individual.
         now_bogota = datetime.now(BOGOTA)
         today      = now_bogota.date()
 
@@ -155,11 +140,10 @@ class PaymentService:
 
         for client_id_att in set(filter(None, [
             int(form_data['client_id']),
-            partner_client_id,   # None si no es Plan Pareja
+            partner_client_id,
         ])):
             if client_id_att == diario_id:
-                continue   # no registrar asistencia para el cliente DIARIO
-            # Evitar duplicar si ya tiene asistencia hoy
+                continue
             ya_asistio = Attendance.query.filter(
                 Attendance.client_id == client_id_att,
                 db.func.date(Attendance.check_in) == today,
@@ -174,8 +158,17 @@ class PaymentService:
         db.session.commit()
         return payment, partner_payment, None
 
+    @staticmethod
+    def mark_as_paid(payment):
+        """Marca un pago pendiente como pagado y retorna True si cambió."""
+        if payment.payment_status == 'pendiente':
+            payment.payment_status = 'pagado'
+            db.session.commit()
+            return True
+        return False
+
     # ------------------------------------------------------------------
-    # Helpers de ingresos
+    # Helpers de ingresos — solo cuentan pagos 'pagado'
     # ------------------------------------------------------------------
     @staticmethod
     def today_income():
@@ -183,6 +176,7 @@ class PaymentService:
         payments = Payment.query.filter(
             Payment.payment_date == today,
             Payment.is_deleted   == False,
+            Payment.payment_status == 'pagado',
         ).all()
         return sum(p.amount for p in payments)
 
@@ -194,56 +188,43 @@ class PaymentService:
             extract('month', Payment.payment_date) == now.month,
             extract('year',  Payment.payment_date) == now.year,
             Payment.is_deleted == False,
+            Payment.payment_status == 'pagado',
         ).all()
         return sum(p.amount for p in payments)
 
     @staticmethod
     def month_payments_raw():
-        """Retorna todos los pagos del mes actual (para desglose por método)."""
         now = datetime.now(BOGOTA)
         from sqlalchemy import extract
         return Payment.query.filter(
             extract('month', Payment.payment_date) == now.month,
             extract('year',  Payment.payment_date) == now.year,
             Payment.is_deleted == False,
+            Payment.payment_status == 'pagado',
         ).all()
 
     @staticmethod
     def income_since(since_date):
-        """Total de ingresos desde una fecha dada (inclusive)."""
         payments = Payment.query.filter(
             Payment.payment_date >= since_date,
             Payment.is_deleted   == False,
+            Payment.payment_status == 'pagado',
         ).all()
         return sum(p.amount for p in payments)
 
     @staticmethod
     def payments_since_raw(since_date):
-        """Retorna todos los pagos desde una fecha dada (para desglose por método)."""
         return Payment.query.filter(
             Payment.payment_date >= since_date,
             Payment.is_deleted   == False,
+            Payment.payment_status == 'pagado',
         ).all()
 
-    # ------------------------------------------------------------------
-    # Eliminación (soft delete) con cascada para Plan Pareja
-    # ------------------------------------------------------------------
     @staticmethod
     def soft_delete_payment(payment):
-        """Marca el pago como eliminado y, si es Plan Pareja, también marca
-        como eliminado el pago "espejo" del otro cliente, para que no quede
-        contando como membresía activa de forma fantasma.
-
-        Retorna el pago espejo afectado (o None si no aplica), para que el
-        llamador pueda registrar el log de auditoría correspondiente.
-        """
         payment.is_deleted = True
-
         mirror = None
         if payment.partner_client_id:
-            # Buscar el pago espejo: mismo membership_id, mismas fechas,
-            # y cuyo client_id sea el partner_client_id de este pago
-            # (o que apunte de vuelta a este pago como partner).
             mirror = Payment.query.filter(
                 Payment.client_id == payment.partner_client_id,
                 Payment.partner_client_id == payment.client_id,
@@ -255,5 +236,4 @@ class PaymentService:
             ).first()
             if mirror:
                 mirror.is_deleted = True
-
         return mirror
