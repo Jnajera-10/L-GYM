@@ -10,6 +10,19 @@
 {% if low_stock %}
 <div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i><strong>Stock bajo:</strong> {{ low_stock|length }} producto(s) necesitan reposición.</div>
 {% endif %}
+<form method="GET" class="mb-3">
+    <div class="input-group">
+        <span class="input-group-text"><i class="fas fa-search"></i></span>
+        <input type="text" name="q" class="form-control" 
+               placeholder="Buscar producto por nombre..." 
+               value="{{ q or '' }}" autofocus>
+        <button type="submit" class="btn btn-primary">Buscar</button>
+        {% if q %}
+        <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary">Limpiar</a>
+        {% endif %}
+    </div>
+</form>
+
 <div class="card shadow-sm">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
@@ -17,6 +30,21 @@
                 <tr><th>Producto</th><th>Categoría</th><th>Marca</th><th>Stock</th><th>P. Compra</th><th>P. Venta</th><th>Acciones</th></tr>
             </thead>
             <tbody>
+                {% if not q %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        <i class="fas fa-search fa-2x mb-2 d-block"></i>
+                        Usa el buscador para encontrar productos
+                    </td>
+                </tr>
+                {% elif not products %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        <i class="fas fa-box-open me-2"></i>
+                        No se encontraron productos con "<strong>{{ q }}</strong>"
+                    </td>
+                </tr>
+                {% else %}
                 {% for p in products %}
                 <tr class="{{ 'table-warning' if p.quantity <= p.min_stock else '' }}">
                     <td>{{ p.name }}</td>
@@ -86,6 +114,7 @@
                 {% else %}
                 <tr><td colspan="7" class="text-center text-muted py-4">No hay productos registrados.</td></tr>
                 {% endfor %}
+                {% endif %}
             </tbody>
         </table>
     </div>

@@ -312,6 +312,65 @@
                     <textarea name="notes" class="form-control" rows="2"></textarea>
                 </div>
 
+                {# ── Productos adicionales del inventario ── #}
+                <div class="col-12">
+                    <div class="border rounded p-3 bg-light">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold text-secondary">
+                                <i class="fas fa-shopping-basket me-1"></i>¿El cliente lleva algo del inventario?
+                            </span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="toggle_inv_btn">
+                                <i class="fas fa-plus me-1"></i>Agregar
+                            </button>
+                        </div>
+                        <div id="inv_table_wrapper" style="display:none">
+                            <div class="position-relative mb-2">
+                                <input type="text" id="inv_search" class="form-control form-control-sm"
+                                       placeholder="🔍 Buscar producto por nombre…" autocomplete="off">
+                                <div id="inv_dropdown"
+                                     class="dropdown-menu w-100 shadow-sm"
+                                     style="display:none; max-height:220px; overflow-y:auto; position:absolute; z-index:1055; top:100%; left:0;"></div>
+                            </div>
+                            <table class="table table-sm table-bordered mb-1" id="inv_cart_table" style="display:none">
+                                <thead class="table-secondary">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th style="width:70px" class="text-center">Stock</th>
+                                        <th style="width:100px">Precio</th>
+                                        <th style="width:85px" class="text-center">Cant.</th>
+                                        <th style="width:100px">Subtotal</th>
+                                        <th style="width:36px"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inv_tbody"></tbody>
+                                <tfoot>
+                                    <tr id="inv_total_row" style="display:none" class="table-success fw-bold">
+                                        <td colspan="4" class="text-end">Total productos</td>
+                                        <td id="inv_total_label">$0</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            <p id="inv_empty" class="text-muted small mb-1">
+                                <i class="fas fa-info-circle me-1"></i>Busca y selecciona productos para agregarlos.
+                            </p>
+                            <div id="inv_hidden_inputs"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── Pago pendiente ── #}
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_pending" id="isPending" role="switch">
+                        <label class="form-check-label text-warning fw-semibold" for="isPending">
+                            <i class="fas fa-clock me-1"></i>
+                            Marcar como <strong>Pago Pendiente</strong>
+                            <span class="text-muted fw-normal small ms-1">(la membresía queda activa pero no cuenta como ingreso hasta cobrar)</span>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="col-12 d-flex gap-2">
                     <button type="submit" class="btn btn-primary">Registrar Pago</button>
                     <a href="{{ url_for('payments.index') }}" class="btn btn-secondary">Cancelar</a>
@@ -802,73 +861,134 @@ if (dailyQtyInput) {
 const origUpdateUI = updateUI;
 membershipSel.addEventListener('change', updateDailyQty);
 
-// ── Inventario ───────────────────────────────────────────────
-let invLoaded = false;
-const toggleInvBtn = document.getElementById('toggle_inv_btn');
+// ── Inventario: carrito con buscador ─────────────────────────
+const toggleInvBtn    = document.getElementById('toggle_inv_btn');
 const invTableWrapper = document.getElementById('inv_table_wrapper');
-const invTbody = document.getElementById('inv_tbody');
-const invTotalRow = document.getElementById('inv_total_row');
-const invTotalLabel = document.getElementById('inv_total_label');
+const invTbody        = document.getElementById('inv_tbody');
+const invTotalRow     = document.getElementById('inv_total_row');
+const invTotalLabel   = document.getElementById('inv_total_label');
+const invCartTable    = document.getElementById('inv_cart_table');
+const invEmpty        = document.getElementById('inv_empty');
+const invSearch       = document.getElementById('inv_search');
+const invDropdown     = document.getElementById('inv_dropdown');
+const invHiddenInputs = document.getElementById('inv_hidden_inputs');
+
+let invProducts = [];   // cache de productos cargados
+const invCart = {};     // { id: {name, stock, price, qty} }
 
 toggleInvBtn.addEventListener('click', function() {
-    if (invTableWrapper.style.display === 'none') {
-        invTableWrapper.style.display = '';
-        toggleInvBtn.innerHTML = '<i class="fas fa-times me-1"></i>Cerrar';
-        if (!invLoaded) loadInventory();
-    } else {
-        invTableWrapper.style.display = 'none';
-        toggleInvBtn.innerHTML = '<i class="fas fa-plus me-1"></i>Agregar';
+    const open = invTableWrapper.style.display !== 'none';
+    invTableWrapper.style.display = open ? 'none' : '';
+    toggleInvBtn.innerHTML = open
+        ? '<i class="fas fa-plus me-1"></i>Agregar'
+        : '<i class="fas fa-times me-1"></i>Cerrar';
+    if (!open && invProducts.length === 0) {
+        fetch('/inventory/api/products')
+            .then(r => r.json())
+            .then(data => { invProducts = data; })
+            .catch(() => {});
     }
 });
 
-function loadInventory() {
-    fetch('/inventory/api/products')
-        .then(r => r.json())
-        .then(products => {
-            invLoaded = true;
-            invTbody.innerHTML = '';
-            products.forEach(p => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${p.name}<input type="hidden" name="inv_product_id" value="${p.id}"></td>
-                    <td><span class="${p.quantity <= p.min_stock ? 'text-danger fw-bold' : ''}">${p.quantity}</span></td>
-                    <td>$${p.sale_price.toLocaleString('es-CO')}</td>
-                    <td><input type="number" name="inv_quantity" class="form-control form-control-sm inv-qty"
-                               data-price="${p.sale_price}" data-stock="${p.quantity}"
-                               value="0" min="0" max="${p.quantity}" style="width:70px"></td>
-                    <td class="inv-subtotal text-success fw-bold">—</td>
-                `;
-                invTbody.appendChild(tr);
-            });
-            document.querySelectorAll('.inv-qty').forEach(inp => {
-                inp.addEventListener('input', updateInvTotal);
-            });
-        })
-        .catch(() => {
-            invTbody.innerHTML = '<tr><td colspan="5" class="text-danger">Error cargando productos</td></tr>';
-        });
+function fmtCOP(n) { return '$' + Math.round(n).toLocaleString('es-CO'); }
+
+function showInvDropdown(q) {
+    const term = q.trim().toLowerCase();
+    const matches = invProducts.filter(p =>
+        term.length === 0 || p.name.toLowerCase().includes(term)
+    ).slice(0, 25);
+    if (matches.length === 0) {
+        invDropdown.innerHTML = '<div class="dropdown-item text-muted small">Sin resultados</div>';
+    } else {
+        invDropdown.innerHTML = matches.map(p => `
+            <div class="dropdown-item d-flex justify-content-between align-items-center inv-opt"
+                 data-id="${p.id}" style="cursor:pointer">
+                <span>${p.name}</span>
+                <span class="text-muted small ms-2">${fmtCOP(p.sale_price)} · Stock: ${p.quantity}</span>
+            </div>`).join('');
+    }
+    invDropdown.style.display = 'block';
 }
 
-function updateInvTotal() {
-    let total = 0;
-    document.querySelectorAll('.inv-qty').forEach(inp => {
-        const qty = parseInt(inp.value) || 0;
-        const price = parseFloat(inp.dataset.price) || 0;
-        const subtotal = qty * price;
-        total += subtotal;
-        const td = inp.closest('tr').querySelector('.inv-subtotal');
-        td.textContent = qty > 0 ? '$' + subtotal.toLocaleString('es-CO') : '—';
-    });
-    if (total > 0) {
-        invTotalRow.style.display = '';
-        invTotalLabel.textContent = '$' + total.toLocaleString('es-CO');
+invSearch.addEventListener('focus', () => showInvDropdown(invSearch.value));
+invSearch.addEventListener('input', () => showInvDropdown(invSearch.value));
+
+invDropdown.addEventListener('click', e => {
+    const opt = e.target.closest('.inv-opt');
+    if (!opt) return;
+    const id = opt.dataset.id;
+    const prod = invProducts.find(p => String(p.id) === id);
+    if (!prod) return;
+    if (invCart[id]) {
+        invCart[id].qty = Math.min(invCart[id].qty + 1, prod.quantity);
     } else {
-        invTotalRow.style.display = 'none';
+        invCart[id] = { name: prod.name, stock: prod.quantity, price: prod.sale_price, qty: 1 };
     }
-    // Update grand total preview
-    const memAmount = parseFloat(amountInput.value) || 0;
-    // We don't change amountInput here; backend sums both
+    renderInvCart();
+    invDropdown.style.display = 'none';
+    invSearch.value = '';
+    invSearch.focus();
+});
+
+function renderInvCart() {
+    const ids = Object.keys(invCart);
+    invTbody.innerHTML = '';
+    invHiddenInputs.innerHTML = '';
+    let total = 0;
+
+    ids.forEach(id => {
+        const item = invCart[id];
+        const sub = item.price * item.qty;
+        total += sub;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${item.name}</td>
+            <td class="text-center">${item.stock}</td>
+            <td>${fmtCOP(item.price)}</td>
+            <td><input type="number" class="form-control form-control-sm text-center inv-qty-inp"
+                       data-id="${id}" value="${item.qty}" min="1" max="${item.stock}" style="width:68px"></td>
+            <td class="inv-sub-cell">${fmtCOP(sub)}</td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger inv-remove" data-id="${id}">
+                <i class="fas fa-trash"></i></button></td>`;
+        invTbody.appendChild(tr);
+        invHiddenInputs.insertAdjacentHTML('beforeend',
+            `<input type="hidden" name="inv_product_id" value="${id}">` +
+            `<input type="hidden" class="inv-hidden-qty" data-id="${id}" name="inv_quantity" value="${item.qty}">`
+        );
+    });
+
+    invTotalLabel.textContent = fmtCOP(total);
+    const has = ids.length > 0;
+    invCartTable.style.display = has ? '' : 'none';
+    invEmpty.style.display     = has ? 'none' : '';
+    invTotalRow.style.display  = has ? '' : 'none';
 }
+
+invTbody.addEventListener('input', e => {
+    if (!e.target.classList.contains('inv-qty-inp')) return;
+    const id  = e.target.dataset.id;
+    const val = Math.min(Math.max(parseInt(e.target.value) || 1, 1), invCart[id].stock);
+    invCart[id].qty = val;
+    e.target.value = val;
+    const sub = invCart[id].price * val;
+    e.target.closest('tr').querySelector('.inv-sub-cell').textContent = fmtCOP(sub);
+    document.querySelector(`.inv-hidden-qty[data-id="${id}"]`).value = val;
+    let total = 0;
+    Object.values(invCart).forEach(i => total += i.price * i.qty);
+    invTotalLabel.textContent = fmtCOP(total);
+});
+
+invTbody.addEventListener('click', e => {
+    const btn = e.target.closest('.inv-remove');
+    if (!btn) return;
+    delete invCart[btn.dataset.id];
+    renderInvCart();
+});
+
+document.addEventListener('click', e => {
+    if (!invSearch.contains(e.target) && !invDropdown.contains(e.target))
+        invDropdown.style.display = 'none';
+});
 
 </script>
 {% endblock %}

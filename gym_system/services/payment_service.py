@@ -78,15 +78,21 @@ class PaymentService:
                 a = 0
             split_parts = [(m, a)]
 
-        from utils.helpers import serialize_payment_split
-        payment_method_str = serialize_payment_split(split_parts)
-
         amount_val = sum(a for _, a in split_parts) if split_parts else 0
         if amount_val == 0:
             try:
                 amount_val = float(form_data.get('amount', 0))
             except (ValueError, TypeError):
                 amount_val = 0
+
+        # Si hay un solo método con monto 0 pero amount_val ya se resolvió,
+        # actualizar split_parts antes de serializar para que WhatsApp muestre el monto correcto.
+        if len(split_parts) == 1 and split_parts[0][1] == 0 and amount_val > 0:
+            split_parts = [(split_parts[0][0], amount_val)]
+
+        from utils.helpers import serialize_payment_split
+        payment_method_str = serialize_payment_split(split_parts)
+
 
         efectivo_amount = sum(a for m, a in split_parts if m == 'efectivo')
         if efectivo_amount > 0:

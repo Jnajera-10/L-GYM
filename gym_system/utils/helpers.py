@@ -47,7 +47,15 @@ def serialize_payment_split(methods_amounts):
     Serializa lista de (metodo, monto) al formato de almacenamiento.
     Ej: [('efectivo', 3000), ('nequi', 2000)] → "efectivo:3000|nequi:2000"
     """
-    return '|'.join(f'{m}:{int(a)}' for m, a in methods_amounts if m and a)
+    parts = []
+    for m, a in methods_amounts:
+        if not m:
+            continue
+        if a is not None:
+            parts.append(f'{m}:{int(a)}')
+        else:
+            parts.append(m)
+    return '|'.join(parts)
 
 
 def primary_payment_method(payment_method_str):

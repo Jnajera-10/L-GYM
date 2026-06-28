@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from database.models.inventory import Product, StockMovement
 from database.db import db
 from services.inventory_service import InventoryService
@@ -38,14 +38,27 @@ def _safe_int(value, default=0):
 @inventory_bp.route('/')
 @login_required
 def index():
-    products = Product.query.filter_by(is_active=True).order_by(Product.name).all()
+    q = request.args.get('q', '').strip()
     low_stock = InventoryService.low_stock()
     movements = StockMovement.query.order_by(StockMovement.created_at.desc()).limit(50).all()
+
+    if q:
+        products = (
+            Product.query
+            .filter(Product.is_active == True)
+            .filter(Product.name.ilike(f'%{q}%'))
+            .order_by(Product.name)
+            .all()
+        )
+    else:
+        products = []  # No mostrar nada si no hay búsqueda
+
     return render_template(
         'inventory/products.html',
         products=products,
         low_stock=low_stock,
         movements=movements,
+        q=q,
     )
 
 
@@ -187,16 +200,12 @@ def alerts():
 @inventory_bp.route('/api/products')
 @login_required
 def api_products():
-    """API para obtener productos activos con stock (para selector en pagos)."""
-    from flask import jsonify
-    products = Product.query.filter(
-        Product.is_active == True,
-        Product.quantity > 0,
-    ).order_by(Product.name).all()
+    """Devuelve lista de productos activos con stock > 0 en JSON (para búsqueda en formularios)."""
+    products = Product.query.filter_by(is_active=True).filter(Product.quantity > 0).order_by(Product.name).all()
     return jsonify([{
-        'id': p.id,
-        'name': p.name,
+        'id':         p.id,
+        'name':       p.name,
+        'quantity':   p.quantity,
+        'min_stock':  p.min_stock,
         'sale_price': p.sale_price,
-        'quantity': p.quantity,
-        'min_stock': p.min_stock,
     } for p in products])
