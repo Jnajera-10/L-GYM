@@ -161,6 +161,26 @@
                     </div>
                 </div>
 
+
+                {# ── Cantidad de personas (solo plan diario) ── #}
+                <div class="col-12" id="daily_quantity_section" style="display:none">
+                    <div class="card border-primary">
+                        <div class="card-body py-2">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-users me-1 text-primary"></i>
+                                ¿Cuántas personas van a ingresar?
+                            </label>
+                            <div class="d-flex align-items-center gap-3">
+                                <input type="number" name="daily_quantity" id="daily_quantity"
+                                       class="form-control" style="width:100px"
+                                       value="1" min="1" max="20">
+                                <span class="text-muted small" id="daily_total_preview"></span>
+                            </div>
+                            <div class="form-text">El monto se calculará automáticamente según la cantidad.</div>
+                        </div>
+                    </div>
+                </div>
+
                 {# ── Monto ── #}
                 <div class="col-md-4">
                     <label class="form-label">Monto *</label>
@@ -290,18 +310,6 @@
                 <div class="col-12">
                     <label class="form-label">Observaciones</label>
                     <textarea name="notes" class="form-control" rows="2"></textarea>
-                </div>
-
-                {# ── Pago pendiente ── #}
-                <div class="col-12">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="is_pending" id="is_pending">
-                        <label class="form-check-label text-warning fw-semibold" for="is_pending">
-                            <i class="fas fa-clock me-1"></i>
-                            Registrar como <strong>Pago Pendiente</strong>
-                            <span class="text-muted small fw-normal">(el cliente aún no ha pagado — no se contará en ingresos)</span>
-                        </label>
-                    </div>
                 </div>
 
                 <div class="col-12 d-flex gap-2">
@@ -760,5 +768,107 @@ document.getElementById('payment_form').addEventListener('submit', function(e) {
 });
 
 updateUI();
+updateDailyQty();
+
+// ── Cantidad personas plan diario ────────────────────────────
+const dailyQtySection = document.getElementById('daily_quantity_section');
+const dailyQtyInput = document.getElementById('daily_quantity');
+const dailyTotalPreview = document.getElementById('daily_total_preview');
+
+function updateDailyQty() {
+    const opt = membershipSel.options[membershipSel.selectedIndex];
+    if (!opt || !opt.value) return;
+    const mtype = opt.dataset.type || '';
+    const price = parseFloat(opt.dataset.price || 0);
+    if (mtype === 'diario') {
+        dailyQtySection.style.display = '';
+        const qty = parseInt(dailyQtyInput.value) || 1;
+        const total = qty * price;
+        amountInput.value = total;
+        const amount1 = document.getElementById('amount_1');
+        if (amount1) amount1.value = total;
+        dailyTotalPreview.textContent = qty + ' × $' + price.toLocaleString('es-CO') + ' = $' + total.toLocaleString('es-CO');
+        updateSplitSummary();
+    } else {
+        dailyQtySection.style.display = 'none';
+        dailyTotalPreview.textContent = '';
+    }
+}
+
+if (dailyQtyInput) {
+    dailyQtyInput.addEventListener('input', updateDailyQty);
+}
+
+const origUpdateUI = updateUI;
+membershipSel.addEventListener('change', updateDailyQty);
+
+// ── Inventario ───────────────────────────────────────────────
+let invLoaded = false;
+const toggleInvBtn = document.getElementById('toggle_inv_btn');
+const invTableWrapper = document.getElementById('inv_table_wrapper');
+const invTbody = document.getElementById('inv_tbody');
+const invTotalRow = document.getElementById('inv_total_row');
+const invTotalLabel = document.getElementById('inv_total_label');
+
+toggleInvBtn.addEventListener('click', function() {
+    if (invTableWrapper.style.display === 'none') {
+        invTableWrapper.style.display = '';
+        toggleInvBtn.innerHTML = '<i class="fas fa-times me-1"></i>Cerrar';
+        if (!invLoaded) loadInventory();
+    } else {
+        invTableWrapper.style.display = 'none';
+        toggleInvBtn.innerHTML = '<i class="fas fa-plus me-1"></i>Agregar';
+    }
+});
+
+function loadInventory() {
+    fetch('/inventory/api/products')
+        .then(r => r.json())
+        .then(products => {
+            invLoaded = true;
+            invTbody.innerHTML = '';
+            products.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${p.name}<input type="hidden" name="inv_product_id" value="${p.id}"></td>
+                    <td><span class="${p.quantity <= p.min_stock ? 'text-danger fw-bold' : ''}">${p.quantity}</span></td>
+                    <td>$${p.sale_price.toLocaleString('es-CO')}</td>
+                    <td><input type="number" name="inv_quantity" class="form-control form-control-sm inv-qty"
+                               data-price="${p.sale_price}" data-stock="${p.quantity}"
+                               value="0" min="0" max="${p.quantity}" style="width:70px"></td>
+                    <td class="inv-subtotal text-success fw-bold">—</td>
+                `;
+                invTbody.appendChild(tr);
+            });
+            document.querySelectorAll('.inv-qty').forEach(inp => {
+                inp.addEventListener('input', updateInvTotal);
+            });
+        })
+        .catch(() => {
+            invTbody.innerHTML = '<tr><td colspan="5" class="text-danger">Error cargando productos</td></tr>';
+        });
+}
+
+function updateInvTotal() {
+    let total = 0;
+    document.querySelectorAll('.inv-qty').forEach(inp => {
+        const qty = parseInt(inp.value) || 0;
+        const price = parseFloat(inp.dataset.price) || 0;
+        const subtotal = qty * price;
+        total += subtotal;
+        const td = inp.closest('tr').querySelector('.inv-subtotal');
+        td.textContent = qty > 0 ? '$' + subtotal.toLocaleString('es-CO') : '—';
+    });
+    if (total > 0) {
+        invTotalRow.style.display = '';
+        invTotalLabel.textContent = '$' + total.toLocaleString('es-CO');
+    } else {
+        invTotalRow.style.display = 'none';
+    }
+    // Update grand total preview
+    const memAmount = parseFloat(amountInput.value) || 0;
+    // We don't change amountInput here; backend sums both
+}
+
 </script>
 {% endblock %}

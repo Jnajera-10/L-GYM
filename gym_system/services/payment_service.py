@@ -1,7 +1,8 @@
-from database.models.payment import Payment, _get_shift
+from database.models.payment import Payment, PaymentItem, _get_shift
 from database.models.membership import Membership
 from database.models.client import Client
 from database.models.attendance import Attendance
+from database.models.inventory import Product, StockMovement
 from database.db import db
 import pytz
 from datetime import datetime, timedelta
@@ -50,6 +51,12 @@ class PaymentService:
             if form_data.get('is_student') != 'on':
                 return None, None, 'El Plan Estudiantil es exclusivo para bachilleres. Confirma el requisito.'
 
+        # ── Cantidad de personas (plan diario) ────────────────────
+        try:
+            daily_quantity = max(1, int(form_data.get('daily_quantity', 1) or 1))
+        except (ValueError, TypeError):
+            daily_quantity = 1
+
         cash_received = None
         cash_change   = None
 
@@ -71,10 +78,9 @@ class PaymentService:
                 a = 0
             split_parts = [(m, a)]
 
-        from utils.helpers import serialize_payment_split, primary_payment_method
+        from utils.helpers import serialize_payment_split
         payment_method_str = serialize_payment_split(split_parts)
 
-        # Calcular amount desde split_parts (fuente confiable)
         amount_val = sum(a for _, a in split_parts) if split_parts else 0
         if amount_val == 0:
             try:
@@ -103,10 +109,35 @@ class PaymentService:
         is_pending = form_data.get('is_pending') == 'on'
         payment_status = 'pendiente' if is_pending else 'pagado'
 
+        # ── Productos del inventario ───────────────────────────────
+        product_ids = form_data.getlist('inv_product_id') if hasattr(form_data, 'getlist') else []
+        inv_quantities = form_data.getlist('inv_quantity') if hasattr(form_data, 'getlist') else []
+
+        inv_items = []
+        inv_total = 0.0
+        for pid_str, qty_str in zip(product_ids, inv_quantities):
+            try:
+                pid = int(pid_str)
+                qty = int(qty_str)
+                if qty <= 0:
+                    continue
+                product = Product.query.get(pid)
+                if not product or not product.is_active:
+                    continue
+                if product.quantity < qty:
+                    return None, None, f'Stock insuficiente para "{product.name}". Disponible: {product.quantity}.'
+                subtotal = product.sale_price * qty
+                inv_items.append({'product': product, 'qty': qty, 'unit_price': product.sale_price, 'subtotal': subtotal})
+                inv_total += subtotal
+            except (ValueError, TypeError):
+                continue
+
+        total_amount = amount_val + inv_total
+
         payment = Payment(
             client_id        = int(form_data['client_id']),
             membership_id    = int(form_data['membership_id']),
-            amount           = amount_val,
+            amount           = total_amount,
             payment_date     = payment_date,
             start_date       = start_date,
             end_date         = end_date,
@@ -117,8 +148,29 @@ class PaymentService:
             cash_received    = cash_received,
             cash_change      = cash_change,
             payment_status   = payment_status,
+            daily_quantity   = daily_quantity,
         )
         db.session.add(payment)
+        db.session.flush()
+
+        # Guardar items de inventario
+        for item in inv_items:
+            pi = PaymentItem(
+                payment_id = payment.id,
+                product_id = item['product'].id,
+                quantity   = item['qty'],
+                unit_price = item['unit_price'],
+                subtotal   = item['subtotal'],
+            )
+            db.session.add(pi)
+            # Descontar stock
+            item['product'].quantity -= item['qty']
+            db.session.add(StockMovement(
+                product_id    = item['product'].id,
+                movement_type = 'salida',
+                quantity      = item['qty'],
+                reason        = f'Venta con membresía #{payment.id}',
+            ))
 
         if membership.is_couple_plan and partner_client_id:
             primary_method = payment_method_str.split(':')[0].split('|')[0].strip()
@@ -139,16 +191,12 @@ class PaymentService:
 
         now_bogota = datetime.now(BOGOTA)
         today      = now_bogota.date()
-
-        diario_id = None
+        diario_id  = None
         _dc = Client.query.filter_by(document_number='DIARIO-0000').first()
         if _dc:
             diario_id = _dc.id
 
-        for client_id_att in set(filter(None, [
-            int(form_data['client_id']),
-            partner_client_id,
-        ])):
+        for client_id_att in set(filter(None, [int(form_data['client_id']), partner_client_id])):
             if client_id_att == diario_id:
                 continue
             ya_asistio = Attendance.query.filter(
@@ -167,7 +215,6 @@ class PaymentService:
 
     @staticmethod
     def mark_as_paid(payment):
-        """Marca un pago pendiente como pagado y retorna True si cambió."""
         if payment.payment_status == 'pendiente':
             payment.payment_status = 'pagado'
             db.session.commit()

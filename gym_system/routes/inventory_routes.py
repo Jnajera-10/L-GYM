@@ -182,3 +182,21 @@ def movements():
 def alerts():
     low_stock = InventoryService.low_stock()
     return render_template('inventory/alerts.html', products=low_stock)
+
+
+@inventory_bp.route('/api/products')
+@login_required
+def api_products():
+    """API para obtener productos activos con stock (para selector en pagos)."""
+    from flask import jsonify
+    products = Product.query.filter(
+        Product.is_active == True,
+        Product.quantity > 0,
+    ).order_by(Product.name).all()
+    return jsonify([{
+        'id': p.id,
+        'name': p.name,
+        'sale_price': p.sale_price,
+        'quantity': p.quantity,
+        'min_stock': p.min_stock,
+    } for p in products])

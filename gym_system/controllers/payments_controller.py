@@ -12,6 +12,7 @@ from services.payment_service import PaymentService
 from services.audit_service import AuditService
 import logging
 
+
 def _fmt(value):
     """Formatea número con puntos como separador de miles (estilo colombiano)."""
     try:
@@ -29,7 +30,6 @@ class PaymentsController:
     @staticmethod
     def index():
         page   = request.args.get('page', 1, type=int)
-        # ── Filtros ──────────────────────────────────────────────
         q           = request.args.get('q', '').strip()
         plan_filter = request.args.get('plan', '').strip()
         method      = request.args.get('method', '').strip()
@@ -39,7 +39,6 @@ class PaymentsController:
 
         hoy_str = datetime.now(BOGOTA).strftime('%Y-%m-%d')
 
-        # Si no hay ningún filtro activo, mostrar solo los de hoy por defecto
         no_filters = not any([q, plan_filter, method, date_from, date_to, shift])
         if no_filters:
             date_from = hoy_str
@@ -65,8 +64,6 @@ class PaymentsController:
                 pass
 
         if method:
-            # payment_method puede ser "efectivo", "efectivo:5000", o "efectivo:3000|nequi:2000"
-            # Buscar si el método aparece en cualquier posición del string
             query = query.filter(Payment.payment_method.ilike(f'%{method}%'))
 
         if shift:
@@ -75,17 +72,14 @@ class PaymentsController:
                 Payment.shift == shift
             )
 
-        # Aplicar filtro de fecha
         hoy_date = datetime.now(BOGOTA).date()
 
         if date_from:
             try:
                 query = query.filter(Payment.payment_date >= datetime.strptime(date_from, '%Y-%m-%d').date())
             except ValueError:
-                # Si el formato falla, usar hoy
                 query = query.filter(Payment.payment_date >= hoy_date)
         elif shift:
-            # Si hay turno pero no hay date_from explícito, forzar hoy
             query = query.filter(Payment.payment_date >= hoy_date)
 
         if date_to:
@@ -94,7 +88,6 @@ class PaymentsController:
             except ValueError:
                 pass
         elif shift and not date_from:
-            # Si hay turno sin rango, limitar también por arriba a hoy
             query = query.filter(Payment.payment_date <= hoy_date)
 
         pagination = query.order_by(Payment.payment_date.desc()).paginate(
@@ -102,10 +95,8 @@ class PaymentsController:
         )
 
         memberships = Membership.query.filter_by(is_active=True).order_by(Membership.name).all()
-
         today = datetime.now(BOGOTA).date()
 
-        # ── Contador de pagos diarios de hoy ──────────────────────────
         from database.models.membership import Membership as Memb
         daily_count_today = (
             Payment.query
@@ -168,6 +159,8 @@ class PaymentsController:
             .count()
         )
 
+        from database.models.inventory import Product
+        products = Product.query.filter_by(is_active=True).filter(Product.quantity > 0).order_by(Product.name).all()
         return render_template(
             'payments/create_payment.html',
             clients           = clients,
@@ -175,27 +168,17 @@ class PaymentsController:
             current_shift     = _get_shift(),
             today             = datetime.now(BOGOTA).strftime('%Y-%m-%d'),
             daily_count_today = daily_count_today,
+            products          = products,
         )
 
     @staticmethod
     def renew():
-        """
-        Renovación rápida: precarga el formulario de nuevo pago con el
-        cliente y la membresía seleccionados, y calcula la fecha de
-        inicio como el día siguiente al vencimiento actual (si aún está
-        activa) o hoy si ya venció.
-
-        GET  /payments/renew?client_id=X&membership_id=Y  → muestra el form
-        POST /payments/renew                               → registra el pago
-        """
         today = datetime.now(BOGOTA).date()
 
         if request.method == 'POST':
-            # Reutiliza exactamente la misma lógica que /payments/create
             payment, partner_payment, error = PaymentService.register_payment(request.form)
             if error:
                 flash(error, 'danger')
-                # Volver al form de renovación con los datos precargados
                 client_id     = request.form.get('client_id')
                 membership_id = request.form.get('membership_id')
                 return redirect(url_for(
@@ -205,18 +188,14 @@ class PaymentsController:
                 ))
             elif payment:
                 AuditService.log(
-                    'renew',
-                    'payments',
-                    payment.id,
+                    'renew', 'payments', payment.id,
                     f'{payment.client.full_name} — {payment.membership.name}',
                     f'${_fmt(payment.amount)} | {payment.start_date} → {payment.end_date}'
                 )
                 _send_payment_email(payment)
                 if partner_payment:
                     AuditService.log(
-                        'renew',
-                        'payments',
-                        partner_payment.id,
+                        'renew', 'payments', partner_payment.id,
                         f'{partner_payment.client.full_name} — {partner_payment.membership.name}',
                         'Plan Pareja (espejo)'
                     )
@@ -227,17 +206,14 @@ class PaymentsController:
             else:
                 flash('No se pudo registrar la renovación.', 'danger')
 
-        # ── GET: precarga de datos ────────────────────────────────
         client_id     = request.args.get('client_id', type=int)
         membership_id = request.args.get('membership_id', type=int)
 
         client     = Client.query.get_or_404(client_id) if client_id else None
         membership = Membership.query.get(membership_id) if membership_id else None
 
-        # Calcular fecha de inicio sugerida
         suggested_start = today
         if client and membership:
-            # Buscar el último pago activo de este cliente con esta membresía
             last_payment = (
                 Payment.query
                 .filter(
@@ -249,7 +225,6 @@ class PaymentsController:
                 .first()
             )
             if last_payment and last_payment.end_date >= today:
-                # La membresía aún no venció → la renovación arranca al día siguiente
                 from datetime import timedelta
                 suggested_start = last_payment.end_date + timedelta(days=1)
 
@@ -258,19 +233,18 @@ class PaymentsController:
 
         return render_template(
             'payments/renew_payment.html',
-            clients          = clients,
-            memberships      = memberships,
-            preselect_client = client,
+            clients              = clients,
+            memberships          = memberships,
+            preselect_client     = client,
             preselect_membership = membership,
-            suggested_start  = suggested_start,
-            today            = today,
+            suggested_start      = suggested_start,
+            today                = today,
         )
 
     @staticmethod
     def receipt(payment_id):
         payment = Payment.query.get_or_404(payment_id)
 
-        # Si es pago diario, calcular cuántos diarios se han registrado ese día
         daily_count = None
         if payment.membership and payment.membership.membership_type == 'diario':
             daily_count = (
@@ -300,12 +274,9 @@ class PaymentsController:
                 f'eliminado (espejo Plan Pareja del pago #{payment.id})',
             )
 
-        # ── WhatsApp al dueño: alerta de eliminación ───────────────
         try:
             from services.notification_service import send_whatsapp_owner
-            from datetime import datetime
-            import pytz
-            hora = datetime.now(pytz.timezone('America/Bogota')).strftime('%H:%M')
+            hora = datetime.now(BOGOTA).strftime('%H:%M')
             msg = (
                 f"🗑️ *L-GYM - Pago Eliminado*\n"
                 f"{'-'*28}\n"
@@ -332,7 +303,6 @@ class PaymentsController:
 
     @staticmethod
     def extend_days(payment_id):
-        """Agrega o quita días a la membresía de un cliente (modifica end_date)."""
         from datetime import timedelta
         payment = Payment.query.get_or_404(payment_id)
         try:
@@ -356,7 +326,7 @@ class PaymentsController:
         accion = f'agregaron {days}' if days > 0 else f'quitaron {abs(days)}'
         flash(f'✅ Se {accion} días a {payment.client.full_name}. Nuevo vencimiento: {payment.end_date.strftime("%d/%m/%Y")}.', 'success')
         return redirect(url_for('clients.detail', client_id=payment.client_id))
-    
+
     @staticmethod
     def mark_paid(payment_id):
         """Marca un pago pendiente como pagado."""
@@ -388,6 +358,7 @@ class PaymentsController:
             flash('Este pago ya estaba marcado como pagado.', 'info')
         return redirect(url_for('payments.index'))
 
+
 # ──────────────────────────────────────────────────────────────────────
 # Helpers de email
 # ──────────────────────────────────────────────────────────────────────
@@ -397,43 +368,68 @@ def _send_payment_email(payment):
         if not client:
             return
 
-        # ── WhatsApp al dueño ──────────────────────────────────────
         try:
             from services.notification_service import send_whatsapp_owner
             from utils.helpers import parse_payment_split
-            from datetime import datetime
-            import pytz
-            hora = datetime.now(pytz.timezone('America/Bogota')).strftime('%H:%M')
+            hora = datetime.now(BOGOTA).strftime('%H:%M')
             turno = payment.shift or '—'
 
-            # Método de pago legible (sin montos en el string)
             metodos = parse_payment_split(payment.payment_method, payment.amount)
             metodo_str = ' + '.join(
                 f"{m.capitalize()} ${_fmt(v)}" if v is not None else m.capitalize()
                 for m, v in metodos
             )
 
-            msg = (
-                f"💪 *L-GYM - Nuevo Pago*\n"
-                f"{'-'*28}\n"
-                f"👤 *Cliente:* {client.full_name}\n"
-                f"📋 *Plan:* {payment.membership.name}\n"
-                f"💰 *Monto:* ${_fmt(payment.amount)} COP\n"
-                f"💳 *Metodo:* {metodo_str}\n"
-                f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
-                f"✅ *Valido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
-                f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"
-                f"🕐 *Turno:* {turno}\n"
-                f"🕑 *Hora:* {hora}\n"
-                f"🔖 *Recibo N.:* {payment.id}\n"
-                f"{'-'*28}\n"
-                f"📝 *Obs:* {payment.notes or 'Sin observaciones'}"
-            )
+            is_pending = getattr(payment, 'payment_status', 'pagado') == 'pendiente'
+            daily_qty = getattr(payment, 'daily_quantity', 1) or 1
+            daily_str = f" ({daily_qty} personas)" if payment.membership and payment.membership.membership_type == 'diario' and daily_qty > 1 else ""
+
+            # Líneas de productos si hay
+            items_lines = ""
+            if hasattr(payment, 'items') and payment.items:
+                lines = [f"  • {i.product.name} x{i.quantity} = ${_fmt(i.subtotal)}" for i in payment.items if i.product]
+                items_lines = "\n🛍️ *Productos:*\n" + "\n".join(lines) + "\n"
+
+            if is_pending:
+                msg = (
+                    f"⏳ *L-GYM - PAGO PENDIENTE*\n"
+                    f"{'-'*28}\n"
+                    f"👤 *Cliente:* {client.full_name}\n"
+                    f"📋 *Plan:* {payment.membership.name}{daily_str}\n"
+                    f"{items_lines}"
+                    f"💰 *TOTAL:* ${_fmt(payment.amount)} COP\n"
+                    f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
+                    f"✅ *Valido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
+                    f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"
+                    f"🕐 *Turno:* {turno}\n"
+                    f"🕑 *Hora:* {hora}\n"
+                    f"🔖 *Recibo N.:* {payment.id}\n"
+                    f"{'-'*28}\n"
+                    f"⚠️ *ESTE CLIENTE AÚN NO HA PAGADO — ESTÁ EN DEUDA.*\n"
+                    f"📝 *Obs:* {payment.notes or 'Sin observaciones'}"
+                )
+            else:
+                msg = (
+                    f"💪 *L-GYM - Nuevo Pago*\n"
+                    f"{'-'*28}\n"
+                    f"👤 *Cliente:* {client.full_name}\n"
+                    f"📋 *Plan:* {payment.membership.name}{daily_str}\n"
+                    f"💳 *Metodo:* {metodo_str}\n"
+                    f"{items_lines}"
+                    f"💰 *TOTAL:* ${_fmt(payment.amount)} COP\n"
+                    f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
+                    f"✅ *Valido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
+                    f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"
+                    f"🕐 *Turno:* {turno}\n"
+                    f"🕑 *Hora:* {hora}\n"
+                    f"🔖 *Recibo N.:* {payment.id}\n"
+                    f"{'-'*28}\n"
+                    f"📝 *Obs:* {payment.notes or 'Sin observaciones'}"
+                )
             send_whatsapp_owner(msg)
         except Exception as exc:
             logger.error(f'[WHATSAPP] Error notificando al dueño: {exc}')
 
-        # ── Email al cliente ───────────────────────────────────────
         if not client.email:
             return
         import os
@@ -452,7 +448,6 @@ def _send_payment_email(payment):
 
 
 def _send_couple_email(partner_payment, main_client):
-    """Notifica al segundo cliente del Plan Pareja."""
     try:
         partner = partner_payment.client
         if not partner or not partner.email:
