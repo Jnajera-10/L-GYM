@@ -185,6 +185,7 @@
                 <div class="col-md-4">
                     <label class="form-label">Monto *</label>
                     <input type="number" name="amount" id="amount" class="form-control" required min="0" step="0.01">
+                    <div class="form-text" id="amount_breakdown_label" style="display:none"></div>
                 </div>
 
                 {# ── Fecha inicio ── #}
@@ -701,6 +702,8 @@ function addDays(dateStr, days) {
     return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+let membershipBasePrice = 0; // precio de la membresía sola, sin productos del inventario
+
 function updateUI() {
     const opt = membershipSel.options[membershipSel.selectedIndex];
     if (!opt || !opt.value) {
@@ -709,6 +712,7 @@ function updateUI() {
         familiarSec.style.display = 'none';
         endPreview.style.display  = 'none';
         updateClientSection('');
+        membershipBasePrice = 0;
         return;
     }
     const mtype    = opt.dataset.type || '';
@@ -716,11 +720,8 @@ function updateUI() {
     const duration = parseInt(opt.dataset.duration || '0');
 
     if (price) {
-        amountInput.value = price;
-        // Si solo hay un método visible, auto-llenar su monto
-        const amount1 = document.getElementById('amount_1');
-        if (amount1) amount1.value = price;
-        updateSplitSummary();
+        membershipBasePrice = parseFloat(price) || 0;
+        applyAmountWithInventory();
     }
 
     updateClientSection(mtype);
@@ -753,18 +754,6 @@ document.getElementById('payment_form').addEventListener('submit', function(e) {
             alert('Debes seleccionar un cliente de la lista.');
             document.getElementById('client_id_text').focus();
             return;
-        }
-    }
-
-    // Auto-fill amount fields vacíos antes de validar
-    const _preTotalMonto = parseFloat(amountInput.value) || 0;
-    for (let _i = 1; _i <= 4; _i++) {
-        const _row = document.getElementById("method_row_" + _i);
-        if (_row && _row.style.display !== "none") {
-            const _amtField = document.getElementById("amount_" + _i);
-            if (_amtField && (!_amtField.value || parseFloat(_amtField.value) === 0) && _preTotalMonto > 0) {
-                _amtField.value = _preTotalMonto;
-            }
         }
     }
 
@@ -838,6 +827,48 @@ document.getElementById('payment_form').addEventListener('submit', function(e) {
     }
 });
 
+// ── Inventario: carrito (declarado antes de las llamadas iniciales) ──
+const invCart = {};     // { id: {name, stock, price, qty} }
+
+// Suma el total del carrito de inventario
+function getInvCartTotal() {
+    let total = 0;
+    Object.values(invCart).forEach(i => total += i.price * i.qty);
+    return total;
+}
+
+// Recalcula el campo "Monto" = precio de membresía + total del carrito de inventario,
+// y mantiene sincronizado el primer método de pago cuando es el único visible.
+function applyAmountWithInventory() {
+    const invTotal = getInvCartTotal();
+    const total = (membershipBasePrice || 0) + invTotal;
+    amountInput.value = total;
+
+    const breakdownEl = document.getElementById('amount_breakdown_label');
+    if (breakdownEl) {
+        if (invTotal > 0) {
+            breakdownEl.style.display = '';
+            breakdownEl.innerHTML = '<i class="fas fa-info-circle me-1"></i>Membresía $' +
+                Math.round(membershipBasePrice || 0).toLocaleString('es-CO') +
+                ' + Productos $' + Math.round(invTotal).toLocaleString('es-CO') +
+                ' = $' + Math.round(total).toLocaleString('es-CO');
+        } else {
+            breakdownEl.style.display = 'none';
+        }
+    }
+
+    // Si solo hay un método de pago visible, auto-llenar su monto también
+    let visibleMethods = 0;
+    for (let i = 1; i <= MAX_METHODS; i++) {
+        const row = document.getElementById('method_row_' + i);
+        if (row && row.style.display !== 'none') visibleMethods++;
+    }
+    const amount1 = document.getElementById('amount_1');
+    if (amount1 && visibleMethods <= 1) amount1.value = total;
+
+    updateSplitSummary();
+}
+
 updateUI();
 updateDailyQty();
 
@@ -855,11 +886,9 @@ function updateDailyQty() {
         dailyQtySection.style.display = '';
         const qty = parseInt(dailyQtyInput.value) || 1;
         const total = qty * price;
-        amountInput.value = total;
-        const amount1 = document.getElementById('amount_1');
-        if (amount1) amount1.value = total;
+        membershipBasePrice = total;
+        applyAmountWithInventory();
         dailyTotalPreview.textContent = qty + ' × $' + price.toLocaleString('es-CO') + ' = $' + total.toLocaleString('es-CO');
-        updateSplitSummary();
     } else {
         dailyQtySection.style.display = 'none';
         dailyTotalPreview.textContent = '';
@@ -873,7 +902,7 @@ if (dailyQtyInput) {
 const origUpdateUI = updateUI;
 membershipSel.addEventListener('change', updateDailyQty);
 
-// ── Inventario: carrito con buscador ─────────────────────────
+// ── Inventario: carrito con buscador (UI) ─────────────────────
 const toggleInvBtn    = document.getElementById('toggle_inv_btn');
 const invTableWrapper = document.getElementById('inv_table_wrapper');
 const invTbody        = document.getElementById('inv_tbody');
@@ -886,7 +915,6 @@ const invDropdown     = document.getElementById('inv_dropdown');
 const invHiddenInputs = document.getElementById('inv_hidden_inputs');
 
 let invProducts = [];   // cache de productos cargados
-const invCart = {};     // { id: {name, stock, price, qty} }
 
 toggleInvBtn.addEventListener('click', function() {
     const open = invTableWrapper.style.display !== 'none';
@@ -974,6 +1002,8 @@ function renderInvCart() {
     invCartTable.style.display = has ? '' : 'none';
     invEmpty.style.display     = has ? 'none' : '';
     invTotalRow.style.display  = has ? '' : 'none';
+
+    applyAmountWithInventory();
 }
 
 invTbody.addEventListener('input', e => {
@@ -988,6 +1018,7 @@ invTbody.addEventListener('input', e => {
     let total = 0;
     Object.values(invCart).forEach(i => total += i.price * i.qty);
     invTotalLabel.textContent = fmtCOP(total);
+    applyAmountWithInventory();
 });
 
 invTbody.addEventListener('click', e => {
