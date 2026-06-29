@@ -85,6 +85,15 @@ class PaymentService:
             except (ValueError, TypeError):
                 amount_val = 0
 
+        # Último fallback: si amount_val sigue en 0, calcular desde el precio
+        # del plan × cantidad de personas (evita que pagos queden guardados como $0)
+        if amount_val == 0 and membership and membership.price:
+            try:
+                daily_qty_fb = max(1, int(form_data.get('daily_quantity', 1) or 1))
+                amount_val = float(membership.price) * daily_qty_fb
+            except (ValueError, TypeError):
+                amount_val = float(membership.price)
+
         # Si hay un solo método con monto 0 pero amount_val ya se resolvió,
         # actualizar split_parts antes de serializar para que WhatsApp muestre el monto correcto.
         if len(split_parts) == 1 and split_parts[0][1] == 0 and amount_val > 0:
