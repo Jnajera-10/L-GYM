@@ -85,28 +85,21 @@ def mark_paid(sid):
         AuditService.log('update', 'sales', sale.id, 'pendiente', 'pagado')
         # WhatsApp confirmación
         try:
-            from services.notification_service import send_whatsapp_owner
+            from services.notification_queue import queue_event
             from datetime import datetime
             import pytz
             hora = datetime.now(pytz.timezone('America/Bogota')).strftime('%H:%M')
-            productos_str = "\n".join(
-                f"  • {item.product.name} x{item.quantity} = ${item.subtotal:,.0f}"
+            productos_str = ", ".join(
+                f"{item.product.name} x{item.quantity}"
                 for item in sale.items if item.product
             )
-            msg = (
-                f"✅ *VENTA COBRADA — L-GYM*\n"
-                f"{'─'*28}\n"
-                f"🔖 *Venta N.:* {sale.id}\n"
-                f"👤 *Cliente:* {sale.client.full_name if sale.client else 'General'}\n"
-                f"*Productos:*\n{productos_str}\n\n"
-                f"💰 *TOTAL: ${sale.total:,.0f} COP*\n"
-                f"🕑 *Hora cobro:* {hora}\n"
-                f"{'─'*28}\n"
-                f"💵 El cliente saldó su deuda pendiente."
+            texto = (
+                f"Venta #{sale.id} — {sale.client.full_name if sale.client else 'General'} — "
+                f"{productos_str} — ${sale.total:,.0f} a las {hora} [deuda saldada]"
             )
-            send_whatsapp_owner(msg)
+            queue_event('venta_cobrada', texto)
         except Exception as exc:
-            logger.error(f'[WHATSAPP] Error notificando venta cobrada: {exc}')
+            logger.error(f'[WHATSAPP] Error encolando venta cobrada: {exc}')
         flash(f'✅ Venta #{sid} marcada como pagada.', 'success')
     else:
         flash('Esta venta ya estaba marcada como pagada.', 'info')

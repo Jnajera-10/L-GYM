@@ -31,4 +31,11 @@ def health():
     except Exception as e:
         current_app.logger.error(f'daily_report error: {e}')
 
+    # Ejecutar resumen horario de pagos/ventas (agrupa mensajes WhatsApp)
+    try:
+        from services.hourly_summary_job import run_hourly_summary
+        run_hourly_summary(current_app._get_current_object())
+    except Exception as e:
+        current_app.logger.error(f'hourly_summary error: {e}')
+
     return jsonify({'status': 'ok', 'time': str(datetime.now(BOGOTA))}), 200

@@ -275,25 +275,17 @@ class PaymentsController:
             )
 
         try:
-            from services.notification_service import send_whatsapp_owner
+            from services.notification_queue import queue_event
             hora = datetime.now(BOGOTA).strftime('%H:%M')
-            msg = (
-                f"🗑️ *L-GYM - Pago Eliminado*\n"
-                f"{'-'*28}\n"
-                f"👤 *Cliente:* {client.full_name if client else '-'}\n"
-                f"📋 *Plan:* {payment.membership.name if payment.membership else '-'}\n"
-                f"💰 *Monto:* ${_fmt(payment.amount)} COP\n"
-                f"💳 *Metodo:* {payment.payment_method or '-'}\n"
-                f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
-                f"🔖 *Recibo N.:* {payment.id}\n"
-                f"🕑 *Hora eliminacion:* {hora}\n"
-                f"{'-'*28}\n"
-                f"⚠️ Este pago fue eliminado del sistema."
-                + (f"\n♻️ Tambien se elimino el espejo Plan Pareja #{mirror.id}." if mirror else "")
+            texto = (
+                f"{client.full_name if client else '-'} — "
+                f"${_fmt(payment.amount)} ({payment.membership.name if payment.membership else '-'}) "
+                f"a las {hora}, Recibo #{payment.id}"
+                + (f" [tambien espejo #{mirror.id}]" if mirror else "")
             )
-            send_whatsapp_owner(msg)
+            queue_event('pago_eliminado', texto)
         except Exception as exc:
-            logger.error(f'[WHATSAPP] Error notificando eliminación: {exc}')
+            logger.error(f'[WHATSAPP] Error encolando notificación de eliminación: {exc}')
 
         if mirror:
             flash('Pago eliminado (incluyendo el registro espejo del Plan Pareja).', 'warning')
@@ -335,24 +327,16 @@ class PaymentsController:
         if changed:
             AuditService.log('update', 'payments', payment.id, 'pendiente', 'pagado')
             try:
-                from services.notification_service import send_whatsapp_owner
+                from services.notification_queue import queue_event
                 hora = datetime.now(BOGOTA).strftime('%H:%M')
-                msg = (
-                    f"✅ *L-GYM - Pago Confirmado*\n"
-                    f"{'-'*28}\n"
-                    f"👤 *Cliente:* {payment.client.full_name if payment.client else '-'}\n"
-                    f"📋 *Plan:* {payment.membership.name if payment.membership else '-'}\n"
-                    f"💰 *Monto:* ${_fmt(payment.amount)} COP\n"
-                    f"💳 *Metodo:* {payment.payment_method or '-'}\n"
-                    f"📅 *Fecha:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
-                    f"🕑 *Hora:* {hora}\n"
-                    f"🔖 *Recibo N.:* {payment.id}\n"
-                    f"{'-'*28}\n"
-                    f"💵 El cliente saldó su deuda pendiente."
+                texto = (
+                    f"{payment.client.full_name if payment.client else '-'} — "
+                    f"${_fmt(payment.amount)} ({payment.payment_method or '-'}) "
+                    f"a las {hora}, Recibo #{payment.id} [deuda saldada]"
                 )
-                send_whatsapp_owner(msg)
+                queue_event('pago', texto)
             except Exception as exc:
-                logger.error(f'[WHATSAPP] Error notificando pago confirmado: {exc}')
+                logger.error(f'[WHATSAPP] Error encolando pago confirmado: {exc}')
             flash(f'✅ Pago #{payment.id} marcado como pagado.', 'success')
         else:
             flash('Este pago ya estaba marcado como pagado.', 'info')
@@ -369,10 +353,9 @@ def _send_payment_email(payment):
             return
 
         try:
-            from services.notification_service import send_whatsapp_owner
+            from services.notification_queue import queue_event
             from utils.helpers import parse_payment_split
             hora = datetime.now(BOGOTA).strftime('%H:%M')
-            turno = payment.shift or '—'
 
             metodos = parse_payment_split(payment.payment_method, payment.amount)
             metodo_str = ' + '.join(
@@ -384,51 +367,24 @@ def _send_payment_email(payment):
             daily_qty = getattr(payment, 'daily_quantity', 1) or 1
             daily_str = f" ({daily_qty} personas)" if payment.membership and payment.membership.membership_type == 'diario' and daily_qty > 1 else ""
 
-            # Líneas de productos si hay
-            items_lines = ""
+            productos_str = ""
             if hasattr(payment, 'items') and payment.items:
-                lines = [f"  • {i.product.name} x{i.quantity} = ${_fmt(i.subtotal)}" for i in payment.items if i.product]
-                items_lines = "\n🛍️ *Productos:*\n" + "\n".join(lines) + "\n"
+                nombres = [f"{i.product.name} x{i.quantity}" for i in payment.items if i.product]
+                if nombres:
+                    productos_str = f" + [{', '.join(nombres)}]"
+
+            texto = (
+                f"{client.full_name} — {payment.membership.name}{daily_str} — "
+                f"${_fmt(payment.amount)} ({metodo_str}) a las {hora}, Recibo #{payment.id}"
+                f"{productos_str}"
+            )
 
             if is_pending:
-                msg = (
-                    f"⏳ *L-GYM - PAGO PENDIENTE*\n"
-                    f"{'-'*28}\n"
-                    f"👤 *Cliente:* {client.full_name}\n"
-                    f"📋 *Plan:* {payment.membership.name}{daily_str}\n"
-                    f"{items_lines}"
-                    f"💰 *TOTAL:* ${_fmt(payment.amount)} COP\n"
-                    f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
-                    f"✅ *Valido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
-                    f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"
-                    f"🕐 *Turno:* {turno}\n"
-                    f"🕑 *Hora:* {hora}\n"
-                    f"🔖 *Recibo N.:* {payment.id}\n"
-                    f"{'-'*28}\n"
-                    f"⚠️ *ESTE CLIENTE AÚN NO HA PAGADO — ESTÁ EN DEUDA.*\n"
-                    f"📝 *Obs:* {payment.notes or 'Sin observaciones'}"
-                )
+                queue_event('pago_pendiente', texto)
             else:
-                msg = (
-                    f"💪 *L-GYM - Nuevo Pago*\n"
-                    f"{'-'*28}\n"
-                    f"👤 *Cliente:* {client.full_name}\n"
-                    f"📋 *Plan:* {payment.membership.name}{daily_str}\n"
-                    f"💳 *Metodo:* {metodo_str}\n"
-                    f"{items_lines}"
-                    f"💰 *TOTAL:* ${_fmt(payment.amount)} COP\n"
-                    f"📅 *Fecha pago:* {payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-'}\n"
-                    f"✅ *Valido desde:* {payment.start_date.strftime('%d/%m/%Y')}\n"
-                    f"⏳ *Vence:* {payment.end_date.strftime('%d/%m/%Y')}\n"
-                    f"🕐 *Turno:* {turno}\n"
-                    f"🕑 *Hora:* {hora}\n"
-                    f"🔖 *Recibo N.:* {payment.id}\n"
-                    f"{'-'*28}\n"
-                    f"📝 *Obs:* {payment.notes or 'Sin observaciones'}"
-                )
-            send_whatsapp_owner(msg)
+                queue_event('pago', texto)
         except Exception as exc:
-            logger.error(f'[WHATSAPP] Error notificando al dueño: {exc}')
+            logger.error(f'[WHATSAPP] Error encolando notificación al dueño: {exc}')
 
         if not client.email:
             return

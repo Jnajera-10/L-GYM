@@ -3,7 +3,7 @@ from database.models.inventory import Product
 from database.db import db
 from services.inventory_service import InventoryService
 from services.audit_service import AuditService
-from services.notification_service import send_whatsapp_owner
+from services.notification_queue import queue_event
 import pytz
 from datetime import datetime
 
@@ -64,32 +64,25 @@ class SalesService:
             sale.total = total
             db.session.commit()
 
-            # ── WhatsApp ──────────────────────────────────────────────
+            # ── WhatsApp (encolado, se envía en el resumen horario) ────
             try:
-                now = datetime.now(BOGOTA).strftime('%d/%m/%Y %H:%M')
-                productos_str = "\n".join(lines_whatsapp)
+                nombres = []
+                for item in items_data:
+                    prod = Product.query.get(item['product_id'])
+                    if prod:
+                        nombres.append(f"{prod.name} x{item['quantity']}")
+                productos_str = ", ".join(nombres)
+
+                texto = (
+                    f"{productos_str} — ${_fmt(total)} ({payment_method})"
+                    + (f" [{notes}]" if notes else "")
+                )
                 if is_pending:
-                    msg = (
-                        f"⏳ *VENTA PENDIENTE — L-GYM*\n"
-                        f"📅 {now}\n"
-                        f"💳 Método: {payment_method}\n\n"
-                        f"*Productos:*\n{productos_str}\n\n"
-                        f"💰 *TOTAL: ${_fmt(total)} COP*\n"
-                        f"⚠️ *CLIENTE AÚN NO HA PAGADO — ESTÁ EN DEUDA.*"
-                    )
+                    queue_event('venta_pendiente', texto)
                 else:
-                    msg = (
-                        f"🛒 *VENTA REGISTRADA — L-GYM*\n"
-                        f"📅 {now}\n"
-                        f"💳 Pago: {payment_method}\n\n"
-                        f"*Productos:*\n{productos_str}\n\n"
-                        f"💰 *TOTAL: ${_fmt(total)} COP*"
-                    )
-                if notes:
-                    msg += f"\n📝 Nota: {notes}"
-                send_whatsapp_owner(msg)
+                    queue_event('venta', texto)
             except Exception as wa_exc:
-                print(f'[WHATSAPP] Error al enviar notificación de venta: {wa_exc}')
+                print(f'[WHATSAPP] Error encolando notificación de venta: {wa_exc}')
 
             # ── Auditoría ─────────────────────────────────────────────
             try:
