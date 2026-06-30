@@ -5,15 +5,15 @@ from database.models.notifications import Notification
 from database.db import db
 import pytz
 from datetime import datetime
-
+ 
 BOGOTA = pytz.timezone('America/Bogota')
 logger = logging.getLogger(__name__)
-
-
+ 
+ 
 # ══════════════════════════════════════════════════════════════════
 #  WHATSAPP — Twilio Sandbox
 # ══════════════════════════════════════════════════════════════════
-
+ 
 def send_whatsapp_owner(mensaje: str) -> bool:
     """
     Envía un mensaje de WhatsApp al dueño del gym via CallMeBot (gratis, sin límite).
@@ -23,11 +23,19 @@ def send_whatsapp_owner(mensaje: str) -> bool:
     """
     phone  = os.environ.get('CALLMEBOT_PHONE', '').strip()
     apikey = os.environ.get('CALLMEBOT_APIKEY', '').strip()
-
+ 
     if not all([phone, apikey]):
         print('[WHATSAPP] Variables CALLMEBOT_PHONE o CALLMEBOT_APIKEY no configuradas.')
         return False
-
+ 
+    # FIX: CallMeBot parece interpretar "$" seguido de un dígito (ej. "$4")
+    # como un placeholder y lo borra del mensaje final, dejando solo
+    # ".000" en vez de "$4.000". Insertamos un espacio de ancho cero
+    # (invisible) entre el "$" y el dígito para romper ese patrón sin
+    # cambiar cómo se ve el mensaje.
+    import re
+    mensaje = re.sub(r'\$(\d)', '$\u200b\\1', mensaje)
+ 
     try:
         # Usar params= para que requests maneje la codificación automáticamente
         response = requests.get(
@@ -48,8 +56,8 @@ def send_whatsapp_owner(mensaje: str) -> bool:
     except Exception as exc:
         print(f'[WHATSAPP ERROR] {exc}')
         return False
-
-
+ 
+ 
 def _send_brevo(to_email: str, subject: str, html_body: str) -> tuple[bool, str]:
     """
     Envía email usando la API HTTP de Brevo (antes Sendinblue).
@@ -58,24 +66,24 @@ def _send_brevo(to_email: str, subject: str, html_body: str) -> tuple[bool, str]
     api_key = os.environ.get('BREVO_API_KEY', '').strip()
     mail_from = os.environ.get('MAIL_FROM', '').strip()
     mail_name = os.environ.get('MAIL_FROM_NAME', 'L-GYM').strip()
-
+ 
     if not api_key:
         msg = 'BREVO_API_KEY vacía en variables de entorno.'
         print("[LOG-ERROR]", f'[EMAIL] {msg}')
         return False, msg
-
+ 
     if not mail_from:
         msg = 'MAIL_FROM vacío en variables de entorno.'
         print("[LOG-ERROR]", f'[EMAIL] {msg}')
         return False, msg
-
+ 
     payload = {
         'sender': {'name': mail_name, 'email': mail_from},
         'to': [{'email': to_email}],
         'subject': subject,
         'htmlContent': html_body,
     }
-
+ 
     try:
         response = requests.post(
             'https://api.brevo.com/v3/smtp/email',
@@ -97,8 +105,8 @@ def _send_brevo(to_email: str, subject: str, html_body: str) -> tuple[bool, str]
         err = str(exc)[:200]
         print("[LOG-ERROR]", f'[EMAIL ERROR] {subject} → {to_email}: {err}')
         return False, err
-
-
+ 
+ 
 def send_email_raw(to_email: str, subject: str, html_body: str,
                    attachment: bytes = None, attach_name: str = None):
     """
@@ -111,23 +119,23 @@ def send_email_raw(to_email: str, subject: str, html_body: str,
     api_key   = os.environ.get('BREVO_API_KEY', '').strip()
     mail_from = os.environ.get('MAIL_FROM', '').strip()
     mail_name = os.environ.get('MAIL_FROM_NAME', 'L-GYM').strip()
-
+ 
     if not api_key or not mail_from:
         raise ValueError('BREVO_API_KEY o MAIL_FROM no configurados.')
-
+ 
     payload = {
         'sender':      {'name': mail_name, 'email': mail_from},
         'to':          [{'email': to_email}],
         'subject':     subject,
         'htmlContent': html_body,
     }
-
+ 
     if attachment and attach_name:
         payload['attachment'] = [{
             'name':    attach_name,
             'content': base64.b64encode(attachment).decode('utf-8'),
         }]
-
+ 
     response = requests.post(
         'https://api.brevo.com/v3/smtp/email',
         json    = payload,
@@ -137,8 +145,8 @@ def send_email_raw(to_email: str, subject: str, html_body: str,
     if response.status_code not in (200, 201):
         raise RuntimeError(f'Brevo error {response.status_code}: {response.text[:200]}')
     print("[LOG-INFO]", f'[EMAIL OK con adjunto] {subject} → {to_email}')
-
-
+ 
+ 
 def _log_notification(client_id, channel, message, success, error=''):
     try:
         status = 'enviado' if success else 'error'
@@ -158,8 +166,8 @@ def _log_notification(client_id, channel, message, success, error=''):
         except Exception:
             pass
     return success
-
-
+ 
+ 
 def _base_template(titulo: str, contenido: str) -> str:
     return f"""
     <!DOCTYPE html>
@@ -188,10 +196,10 @@ def _base_template(titulo: str, contenido: str) -> str:
     </body>
     </html>
     """
-
-
+ 
+ 
 class NotificationService:
-
+ 
     @staticmethod
     def send_welcome(client):
         if not client.email:
@@ -210,7 +218,7 @@ class NotificationService:
         html = _base_template('¡Bienvenido a L-GYM!', contenido)
         ok, err = _send_brevo(client.email, '¡Bienvenido a L-GYM! 💪', html)
         return _log_notification(client.id, 'email', f'Bienvenida: {client.full_name}', ok, err)
-
+ 
     @staticmethod
     def send_payment_confirmation(payment):
         client = payment.client
@@ -231,7 +239,7 @@ class NotificationService:
         html = _base_template('Pago Confirmado ✅', contenido)
         ok, err = _send_brevo(client.email, f'Pago confirmado — {payment.membership.name}', html)
         return _log_notification(client.id, 'email', f'Pago confirmado: ${payment.amount}', ok, err)
-
+ 
     @staticmethod
     def send_expiry_warning(payment, days_left: int):
         client = payment.client
@@ -251,7 +259,7 @@ class NotificationService:
         html = _base_template(f'Tu membresía vence {dias_texto} {emoji}', contenido)
         ok, err = _send_brevo(client.email, f'{emoji} Tu membresía vence {dias_texto} — L-GYM', html)
         return _log_notification(client.id, 'email', f'Aviso vencimiento: {days_left} días', ok, err)
-
+ 
     @staticmethod
     def send_expired_notice(payment):
         client = payment.client
@@ -269,7 +277,7 @@ class NotificationService:
         html = _base_template('Tu membresía ha vencido ❌', contenido)
         ok, err = _send_brevo(client.email, '❌ Tu membresía en L-GYM ha vencido — ¡Renueva!', html)
         return _log_notification(client.id, 'email', f'Membresía expirada: {payment.end_date}', ok, err)
-
+ 
     @staticmethod
     def send_password_reset(user):
         contenido = f"""
@@ -281,14 +289,14 @@ class NotificationService:
         html = _base_template('Recuperación de Contraseña 🔐', contenido)
         ok, err = _send_brevo(user.email, 'Recuperación de contraseña — L-GYM', html)
         return _log_notification(None, 'email', f'Reset password: {user.email}', ok, err)
-
+ 
     @staticmethod
     def send_email(to_email, subject, body, client_id=None):
         html = _base_template(subject, f'<p style="color:#555;">{body}</p>')
         ok, err = _send_brevo(to_email, subject, html)
         return _log_notification(client_id, 'email', subject[:100], ok, err)
-
-
+ 
+ 
     @staticmethod
     def send_couple_plan_notification(partner_payment, main_client):
         """
@@ -314,3 +322,4 @@ class NotificationService:
         html = _base_template('¡Tu Plan Pareja está activo! 💑', contenido)
         ok, err = _send_brevo(partner.email, '💑 Tu Plan Pareja en L-GYM está activo', html)
         return _log_notification(partner.id, 'email', 'Plan Pareja activado', ok, err)
+ 
