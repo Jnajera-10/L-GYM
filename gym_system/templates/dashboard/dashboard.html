@@ -264,6 +264,12 @@
     </div>
 </div>
 
+{# ══════════════════════════════════════════════════════════════════════
+   DATOS DEL DASHBOARD — solo visibles para administradores.
+   Los usuarios sin rol admin solo ven el banner de bienvenida de arriba.
+   ══════════════════════════════════════════════════════════════════════ #}
+{% if session.get('user_role') == 'admin' %}
+
 {# Resto del dashboard original: título y tarjetas #}
 <h4 class="mb-4"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h4>
 
@@ -897,6 +903,9 @@
     </div>
 </div>
 {% endif %}
+
+{% endif %}
+{# ↑ fin del bloque visible solo para administradores ↑ #}
 
 {# ── Modal: Renovar o cambiar plan ───────────────────────────── #}
 <div class="modal fade" id="renewModal" tabindex="-1" aria-hidden="true">
