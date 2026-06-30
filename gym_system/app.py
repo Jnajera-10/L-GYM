@@ -44,7 +44,7 @@ def create_app():
             'auth.login',
             'auth.logout',
             'auth.forgot_password',
-            'health.ping',
+            'health.health',
             'static',
             'zkbio.membresias_activas',
         }
