@@ -23,6 +23,7 @@ def queue_event(tipo: str, texto: str):
     """Agrega un evento a la cola en memoria. Thread-safe."""
     with _lock:
         _queue.append({'tipo': tipo, 'texto': texto})
+        print(f'[notification_queue] evento encolado: tipo={tipo}, total_en_cola={len(_queue)}', flush=True)
 
 
 def pop_all():

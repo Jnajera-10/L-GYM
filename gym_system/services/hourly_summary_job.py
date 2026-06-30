@@ -116,20 +116,25 @@ def run_hourly_summary(app):
         now = datetime.now(BOGOTA)
         hour_key = now.strftime('%Y-%m-%d-%H')
 
+        print(f'[hourly_summary] chequeo a las {now.strftime("%H:%M:%S")} (hour_key={hour_key}, ultimo_run={_last_run_hour_key})', flush=True)
+
         # Fuera del horario 5am-10pm: no enviar, dejar acumulando en la cola
         if now.hour < HORA_INICIO or now.hour >= HORA_FIN:
+            print(f'[hourly_summary] fuera de horario (hora={now.hour}), no se ejecuta.', flush=True)
             return
 
         # Ya corrió esta hora
         if _last_run_hour_key == hour_key:
+            print(f'[hourly_summary] ya se ejecuto en esta hora ({hour_key}), se omite.', flush=True)
             return
 
         _last_run_hour_key = hour_key
 
         try:
             eventos = pop_all()
+            print(f'[hourly_summary] eventos en cola: {len(eventos)}', flush=True)
             if not eventos:
-                logger.info(f'[hourly_summary] {hour_key} — sin eventos, no se envía nada.')
+                print(f'[hourly_summary] {hour_key} — sin eventos, no se envía nada.', flush=True)
                 return
 
             fecha_str = now.strftime('%d/%m/%Y')
@@ -148,12 +153,15 @@ def run_hourly_summary(app):
                 cuerpo = "\n\n".join(parte_bloques)
                 sufijo_parte = f" (parte {i}/{total_partes})" if total_partes > 1 else ""
                 mensaje = f"{encabezado.rstrip(chr(10))}{sufijo_parte}\n{cuerpo}{pie}"
-                send_whatsapp_owner(mensaje)
+                ok = send_whatsapp_owner(mensaje)
+                print(f'[hourly_summary] parte {i}/{total_partes} enviada, resultado={ok}', flush=True)
 
-            logger.info(
+            print(
                 f'[hourly_summary] {hour_key} — resumen enviado '
-                f'({len(eventos)} eventos, {total_partes} mensaje(s)).'
+                f'({len(eventos)} eventos, {total_partes} mensaje(s)).', flush=True
             )
 
         except Exception as exc:
-            logger.error(f'[hourly_summary] Error generando resumen: {exc}', exc_info=True)
+            print(f'[hourly_summary] ERROR generando resumen: {exc}', flush=True)
+            import traceback
+            traceback.print_exc()
