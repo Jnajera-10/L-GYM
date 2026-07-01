@@ -250,6 +250,41 @@ class DashboardController:
         daily_month_income = sum(p.amount for p in daily_month_payments)
         daily_count_month  = len(daily_month_payments)
 
+        # ── Stock inicial del día vs stock actual ─────────────────────
+        # Lógica: stock_inicial = stock_actual + unidades_vendidas_hoy
+        # (porque cada venta ya descontó del stock)
+        from database.models.sales import SaleItem
+        from sqlalchemy import func
+
+        # Suma de unidades vendidas hoy por producto
+        sold_today_subq = (
+            db.session.query(
+                SaleItem.product_id,
+                func.sum(SaleItem.quantity).label('sold')
+            )
+            .join(Sale, SaleItem.sale_id == Sale.id)
+            .filter(
+                db.func.date(Sale.sale_date) == today,
+                Sale.is_deleted == False,
+            )
+            .group_by(SaleItem.product_id)
+            .all()
+        )
+        sold_today_map = {row.product_id: row.sold for row in sold_today_subq}
+
+        all_products = Product.query.filter_by(is_active=True).order_by(Product.name).all()
+        stock_snapshot = []
+        for prod in all_products:
+            sold = sold_today_map.get(prod.id, 0)
+            initial = prod.quantity + sold
+            if sold > 0:   # solo mostrar productos con movimiento hoy
+                stock_snapshot.append({
+                    'name':    prod.name,
+                    'initial': initial,
+                    'current': prod.quantity,
+                    'sold':    sold,
+                })
+
         return render_template(
             'dashboard/dashboard.html',
             stats                   = stats,
@@ -283,4 +318,6 @@ class DashboardController:
             total_memberships_sold_today  = total_memberships_sold_today,
             total_sales_morning           = total_sales_morning,
             total_sales_afternoon         = total_sales_afternoon,
+            # Stock: comparativo inicio del día vs ahora
+            stock_snapshot                = stock_snapshot,
         )

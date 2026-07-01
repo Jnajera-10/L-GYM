@@ -26,7 +26,14 @@
                 <div class="row mb-3">
                     <div class="col-6">
                         <p class="mb-1"><strong>Cliente:</strong><br>
-                            {{ sale.client.full_name if sale.client else 'Cliente general' }}</p>
+                            {% if sale.client %}
+                                {{ sale.client.full_name }}
+                            {% elif sale.customer_name %}
+                                {{ sale.customer_name }}
+                            {% else %}
+                                Cliente general
+                            {% endif %}
+                        </p>
                     </div>
                     <div class="col-6 text-end">
                         <p class="mb-1"><strong>Método de pago:</strong><br>{{ sale.payment_method }}</p>

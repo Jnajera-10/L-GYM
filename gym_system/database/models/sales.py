@@ -11,6 +11,7 @@ class Sale(db.Model):
     total = db.Column(db.Float, nullable=False)
     payment_method = db.Column(db.String(30), default='efectivo')
     notes = db.Column(db.Text)
+    customer_name = db.Column(db.String(150))   # nombre libre para factura (cliente general)
     is_deleted = db.Column(db.Boolean, default=False)
     sale_date = db.Column(db.DateTime, default=lambda: datetime.now(BOGOTA))
 

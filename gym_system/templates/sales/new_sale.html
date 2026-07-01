@@ -48,6 +48,21 @@
         </div>
       </div>
 
+      {# ── Nombre para factura (solo cliente general) ── #}
+      <div class="row g-3 mb-4" id="customerNameRow" style="display:none">
+        <div class="col-md-5">
+          <label class="form-label fw-semibold">
+            <i class="fas fa-user-tag me-1 text-secondary"></i>Nombre para la factura
+            <span class="text-muted fw-normal">(cliente sin registrar)</span>
+          </label>
+          <input type="text" name="customer_name" id="customerNameInput"
+                 class="form-control" placeholder="Ej: Juan García…" maxlength="150">
+          <div class="form-text text-muted">
+            Solo aparece en la factura, no crea un cliente en el sistema.
+          </div>
+        </div>
+      </div>
+
       {# ── Buscador de productos ── #}
       <h6 class="fw-bold mb-2"><i class="fas fa-boxes me-1"></i>Productos</h6>
       <div class="row g-2 mb-3">
@@ -318,5 +333,24 @@ document.addEventListener('click', e => {
   if (!clientSearch.contains(e.target) && !clientDropdown.contains(e.target))
     clientDropdown.style.display = 'none';
 });
+
+// ── Mostrar "Nombre para factura" solo cuando no hay cliente ────────
+const customerNameRow   = document.getElementById('customerNameRow');
+const customerNameInput = document.getElementById('customerNameInput');
+
+function toggleCustomerName() {
+  const sinCliente = !clientIdInput.value;
+  customerNameRow.style.display = sinCliente ? '' : 'none';
+  if (!sinCliente) customerNameInput.value = '';  // limpiar si seleccionan cliente
+}
+
+// Al seleccionar un cliente del dropdown → ocultar
+clientDropdown.addEventListener('click', () => setTimeout(toggleCustomerName, 50));
+
+// Al quitar el cliente → mostrar
+document.getElementById('clearClient').addEventListener('click', () => setTimeout(toggleCustomerName, 50));
+
+// Estado inicial: sin cliente → mostrar
+toggleCustomerName();
 </script>
 {% endblock %}

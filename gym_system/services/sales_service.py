@@ -17,7 +17,7 @@ def _fmt(value):
 
 class SalesService:
     @staticmethod
-    def create_sale(client_id, items_data, payment_method, notes=None, is_pending=False):
+    def create_sale(client_id, items_data, payment_method, notes=None, is_pending=False, customer_name=None):
         for item in items_data:
             product = Product.query.get(item['product_id'])
             if not product:
@@ -33,6 +33,7 @@ class SalesService:
                 client_id=client_id,
                 payment_method=payment_method,
                 notes=notes,
+                customer_name=customer_name,
                 total=0,
                 payment_status=payment_status,
             )

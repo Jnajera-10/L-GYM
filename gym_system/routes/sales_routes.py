@@ -37,6 +37,7 @@ def new():
         client_id = request.form.get('client_id') or None
         payment_method = request.form.get('payment_method', 'efectivo')
         notes = request.form.get('notes', '').strip() or None
+        customer_name = request.form.get('customer_name', '').strip() or None
         is_pending = request.form.get('is_pending') == 'on'
 
         product_ids = request.form.getlist('product_id')
@@ -61,7 +62,7 @@ def new():
             return render_template('sales/new_sale.html', products=products, clients=clients)
 
         try:
-            sale = SalesService.create_sale(client_id, items, payment_method, notes, is_pending)
+            sale = SalesService.create_sale(client_id, items, payment_method, notes, is_pending, customer_name)
             if is_pending:
                 flash('⏳ Venta registrada como PENDIENTE — el cliente aún no ha pagado.', 'warning')
             else:
