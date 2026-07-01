@@ -2,7 +2,7 @@ from app import application
 from database.db import db
 from database.models.client import Client
 from sqlalchemy import text
-
+ 
 with application.app_context():
     # ── Migraciones de columnas / tablas (idempotentes) ──────────────
     with db.engine.connect() as conn:
@@ -32,7 +32,15 @@ with application.app_context():
         """))
         conn.commit()
     print("OK — migraciones de columnas aplicadas")
-
+ 
+    # ── Migración: customer_name en sales ────────────────────────────
+    with db.engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE sales ADD COLUMN IF NOT EXISTS customer_name VARCHAR(150)"
+        ))
+        conn.commit()
+    print("OK — columna customer_name en sales")
+ 
     # ── Crear cliente especial DIARIO si no existe ───────────────────
     diario = Client.query.filter_by(document_number='DIARIO-0000').first()
     if not diario:
@@ -48,5 +56,5 @@ with application.app_context():
         print("OK — Cliente DIARIO creado con ID:", diario.id)
     else:
         print("OK — Cliente DIARIO ya existía con ID:", diario.id)
-
+ 
     print("OK — migraciones aplicadas correctamente")
