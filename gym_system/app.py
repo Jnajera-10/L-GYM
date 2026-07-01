@@ -94,6 +94,16 @@ def create_app():
             pass
  
         try:
+            from sqlalchemy import text
+            with db.engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE sales ADD COLUMN IF NOT EXISTS customer_name VARCHAR(150)"
+                ))
+                conn.commit()
+        except Exception:
+            pass
+
+        try:
             from sqlalchemy import text, inspect
             inspector = inspect(db.engine)
             columns = inspector.get_columns('payments')
